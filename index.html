@@ -1,0 +1,2437 @@
+<title>Bleu, Chic &amp; Givré</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Mono:wght@300;400;600&display=swap">
+
+<style>
+  /* Palette mesurée sur l'affiche — aucune couleur hors de cette liste.
+     Une seule ambiance, la nuit de glace ; tout est peint explicitement,
+     la page tient donc sur n'importe quel fond hôte. */
+  :root {
+    --nuit:        #000C3C;
+    --nuit-clair:  #001844;
+    --bleu:        #001E7E;
+    --median:      #3F6597;
+    --gris-bleu:   #627FA6;
+    --givre:       #DCECFA;
+    --argent:      #E8E8EC;
+    --blanc:       #F0FCFC;
+
+    /* couleurs de sens, distinctes de l'accent */
+    --du:      #D9A441;
+    --regle:   #4FB286;
+    --alerte:  #E68A8A;
+
+    /* Palette catégorielle mesurée sur ce fond (valider_palette.py) :
+       18,4 d'écart en vision normale, 12,3 en deutéranopie, 13,7 en
+       protanopie — très au-dessus des planchers de 15 et 8. L'ancienne
+       échelle de bleus échouait : ses deux paliers clairs se confondaient
+       et le plus clair se lisait comme un gris.
+       « Non attribué » n'est pas une couleur mais un vide : il est hachuré. */
+    --sale:       #63A6EC;
+    --specialite: #EE9A55;
+    --sucre:      #DE7FD4;
+    --vide:       #5A6E88;
+    --duo-clair:  #7FBDF2;
+    --duo-sombre: #2A5E9E;
+
+    --serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --sans:  "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono:  "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+    --pas: 4px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--nuit);
+    color: var(--blanc);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1040px; margin: 0 auto; padding: 0 20px 90px; }
+
+  /* ---------- en-tête compact ---------- */
+  .entete {
+    position: relative; overflow: hidden;
+    padding: 34px 20px 26px; text-align: center;
+    background:
+      radial-gradient(ellipse 120% 90% at 50% -20%, rgba(63,101,151,.40), transparent 70%),
+      linear-gradient(180deg, var(--nuit-clair) 0%, var(--nuit) 100%);
+    border-bottom: 1px solid rgba(99,127,166,.34);
+  }
+  .entete::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg,
+      rgba(220,236,250,.05) 0 1px, transparent 1px 13px);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.8), transparent 90%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.8), transparent 90%);
+  }
+  .entete > * { position: relative; }
+  h1 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(1.9rem, 5.5vw, 2.7rem); line-height: 1.05;
+    color: var(--givre); margin: 0; text-wrap: balance;
+  }
+  .entete .quand { margin: 8px 0 0; font-size: .9rem; color: var(--gris-bleu); }
+  .entete .quand b { color: var(--argent); font-weight: 600; }
+
+  /* ---------- bandeau du compte à rebours ---------- */
+  .rebours {
+    display: flex; justify-content: center; align-items: baseline;
+    gap: 20px; flex-wrap: wrap;
+    padding: 13px 20px;
+    background: var(--nuit-clair);
+    border-bottom: 1px solid rgba(99,127,166,.28);
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .rebours .bloc { text-align: center; }
+  .rebours b { display: block; font-size: 1.45rem; font-weight: 300; color: var(--givre); line-height: 1.1; }
+  .rebours span { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gris-bleu); }
+  .rebours .sep { color: var(--median); }
+  .rebours .limite { font-size: .85rem; color: var(--du); font-family: var(--sans); }
+
+  /* ---------- onglets ---------- */
+  .onglets {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 2px; overflow-x: auto;
+    padding: 0 20px; margin: 0 -20px 28px;
+    background: rgba(0,12,60,.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(99,127,166,.3);
+    scrollbar-width: none;
+  }
+  .onglets::-webkit-scrollbar { display: none; }
+  .onglets button {
+    flex: 0 0 auto;
+    appearance: none; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    padding: 15px 15px;
+    font-family: var(--sans); font-size: .94rem; color: var(--gris-bleu);
+    cursor: pointer; white-space: nowrap;
+  }
+  .onglets button:hover { color: var(--argent); }
+  .onglets button[aria-selected="true"] { color: var(--givre); border-bottom-color: var(--givre); font-weight: 600; }
+  .onglets button:focus-visible { outline: 2px solid var(--givre); outline-offset: -4px; }
+  .pastille-nb {
+    display: inline-block; margin-left: 7px; padding: 1px 7px;
+    border-radius: 9px; font-family: var(--mono); font-size: .72rem;
+    background: rgba(217,164,65,.22); color: var(--du);
+  }
+  .pastille-nb:empty { display: none; }
+  .volet[hidden] { display: none; }
+
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 1.55rem; color: var(--givre); margin: 0 0 6px; }
+  section { margin-bottom: 42px; }
+  .chapeau { margin: 0 0 20px; color: var(--gris-bleu); font-size: .93rem; max-width: 64ch; }
+  .chapeau b { color: var(--blanc); font-weight: 600; }
+  .chapeau .chiffre { font-family: var(--mono); color: var(--argent); }
+
+  /* ---------- alerte de jauge ---------- */
+  .alerte-jauge {
+    display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+    padding: 18px 22px; margin-bottom: 20px;
+    background: linear-gradient(180deg, rgba(230,138,138,.15), rgba(230,138,138,.06));
+    border: 1px solid rgba(230,138,138,.45); border-left: 3px solid var(--alerte);
+    border-radius: var(--pas);
+  }
+  .alerte-jauge .nb {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 2.4rem; font-weight: 300; line-height: 1; color: var(--alerte);
+  }
+  .alerte-jauge .dit { flex: 1 1 260px; }
+  .alerte-jauge h3 { margin: 0 0 5px; font-family: var(--serif); font-size: 1.25rem; font-weight: 600; color: var(--alerte); }
+  .alerte-jauge p { margin: 0; font-size: .93rem; line-height: 1.6; }
+  .alerte-jauge p b { font-family: var(--mono); font-weight: 600; color: var(--alerte); }
+
+  /* ---------- panneaux & grille ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: stretch; }
+  .panneau { display: flex; flex-direction: column; }
+  .panneau > .contrib { flex: 1 1 auto; justify-content: space-around; }
+  .panneau {
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.28);
+    border-radius: var(--pas); padding: 20px 22px 22px;
+  }
+  .large { grid-column: 1 / -1; }
+  .panneau h3 { margin: 0 0 4px; font-family: var(--serif); font-size: 1.15rem; font-weight: 600; color: var(--givre); }
+  .panneau .sous { margin: 0 0 16px; font-size: .85rem; color: var(--gris-bleu); }
+
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .carte { background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.28); border-radius: var(--pas); padding: 15px 17px; }
+  .carte .valeur {
+    display: block; font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 1.8rem; font-weight: 300; line-height: 1.15; color: var(--argent);
+  }
+  .carte .valeur.du { color: var(--du); }
+  .carte .valeur.regle { color: var(--regle); }
+  .carte .quoi { display: block; margin-top: 4px; font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gris-bleu); }
+  .carte .detail { display: block; margin-top: 5px; font-size: .85rem; color: var(--median); }
+
+  /* ---------- jauge en arc ---------- */
+  .jauge-arc { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .arc-nb { font-family: var(--mono); font-variant-numeric: tabular-nums; fill: var(--givre); text-anchor: middle; font-size: 48px; font-weight: 300; }
+  .arc-sur { font-family: var(--mono); fill: var(--gris-bleu); text-anchor: middle; font-size: 11px; letter-spacing: .12em; }
+  .arc-bout { font-family: var(--mono); fill: var(--median); font-size: 11px; }
+  .jauge-arc .lecture { flex: 1 1 250px; }
+  .jauge-arc .lecture h3 { margin: 0 0 5px; }
+  .jauge-arc .lecture p { margin: 0; font-size: .93rem; color: var(--gris-bleu); }
+  .jauge-arc .lecture p b { color: var(--du); font-family: var(--mono); font-weight: 600; }
+
+  /* ---------- camembert ---------- */
+  .camembert { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .camembert .creux { font-family: var(--mono); fill: var(--givre); text-anchor: middle; }
+  .camembert .creux .gros { font-size: 34px; }
+  .camembert .creux .petit { font-size: 10px; fill: var(--gris-bleu); letter-spacing: .1em; }
+  .legende { list-style: none; margin: 0; padding: 0; flex: 1 1 170px; min-width: 165px; }
+  .legende li { display: flex; align-items: baseline; gap: 9px; padding: 4px 0; font-size: .88rem; }
+  .legende i { flex: 0 0 auto; width: 11px; height: 11px; border-radius: 2px; border: 1px solid rgba(0,12,60,.5); }
+  .legende .val { margin-left: auto; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--gris-bleu); }
+
+  /* ---------- barres ---------- */
+  .contrib { display: flex; flex-direction: column; gap: 22px; }
+  .contrib-ligne { display: block; }
+  .contrib-ligne .haut {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 7px;
+  }
+  .contrib-ligne .nom { color: var(--blanc); font-size: .95rem; }
+  .contrib-ligne .chiffre {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    color: var(--argent); font-size: .9rem;
+  }
+  .barre { position: relative; height: 30px; background: rgba(99,127,166,.16); border-radius: 3px; }
+  .barre i { display: block; height: 100%; border-radius: 3px; }
+  .barre u {
+    position: absolute; top: -4px; bottom: -4px; width: 2px;
+    background: var(--givre); text-decoration: none;
+  }
+  .contrib-ligne .pied {
+    display: flex; justify-content: space-between; gap: 10px;
+    margin-top: 6px; font-size: .78rem; color: var(--median);
+  }
+  .contrib-ligne .pied .ecart { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .colonnes { display: flex; align-items: flex-end; gap: 9px; height: 140px; }
+  .colonnes .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .colonnes .col i { display: block; background: var(--pas2); border-radius: 2px 2px 0 0; min-height: 2px; }
+  .colonnes .col .n { font-family: var(--mono); font-size: .8rem; color: var(--argent); text-align: center; margin-bottom: 4px; }
+  .colonnes .col .etiq { font-size: .75rem; color: var(--gris-bleu); text-align: center; margin-top: 6px; }
+  .empilee { display: flex; height: 28px; border-radius: 3px; overflow: hidden; gap: 2px; }
+  .empilee i { display: block; height: 100%; }
+
+  /* ---------- tableaux ---------- */
+  .defile { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th {
+    text-align: left; font-weight: 600; font-size: .7rem; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--gris-bleu);
+    padding: 0 11px 8px; border-bottom: 1px solid rgba(99,127,166,.4); white-space: nowrap;
+  }
+  th.droite { text-align: right; }
+  td { padding: 9px 11px; border-bottom: 1px solid rgba(99,127,166,.16); vertical-align: middle; }
+  td.nombre { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  td.reste-du { color: var(--du); }
+  td .prenoms { display: block; color: var(--gris-bleu); font-size: .83rem; }
+  tr.annulee td { color: var(--gris-bleu); }
+  .manquant { color: var(--du); font-style: italic; }
+
+  /* ---------- barre d'outils de la liste ---------- */
+  .outils { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .outils input[type="search"], .outils select {
+    appearance: none;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: var(--pas);
+    padding: 9px 12px; font-family: var(--sans); font-size: .9rem;
+  }
+  .outils input[type="search"] { flex: 1 1 190px; min-width: 145px; }
+  .outils input:focus-visible, .outils select:focus-visible { outline: 2px solid var(--givre); outline-offset: 1px; }
+  .outils .compte { margin-left: auto; font-family: var(--mono); font-size: .85rem; color: var(--gris-bleu); }
+  .groupe-tri { display: inline-flex; align-items: stretch; gap: 0; }
+  .groupe-tri select { border-radius: 0; }
+  .groupe-tri select:first-child { border-radius: var(--pas) 0 0 var(--pas); }
+  .groupe-tri select:last-child { border-radius: 0 var(--pas) var(--pas) 0; border-left: none; }
+  .groupe-tri #sens {
+    appearance: none; cursor: pointer;
+    background: var(--nuit); color: var(--givre);
+    border: 1px solid rgba(99,127,166,.45); border-left: none; border-right: none;
+    padding: 0 11px; font-family: var(--mono); font-size: 1rem; line-height: 1;
+  }
+  .groupe-tri #sens:hover { background: rgba(99,127,166,.18); }
+  .groupe-tri #sens:focus-visible { outline: 2px solid var(--givre); outline-offset: -2px; }
+
+  .etat-saisie {
+    padding: 11px 15px; margin-bottom: 16px;
+    border-radius: var(--pas); font-size: .88rem;
+    background: rgba(99,127,166,.12); border: 1px solid rgba(99,127,166,.3);
+    color: var(--gris-bleu);
+  }
+  .etat-saisie.vivant { border-color: rgba(79,178,134,.45); color: var(--regle); }
+  .etat-saisie.mort { border-color: rgba(217,164,65,.4); color: var(--du); }
+
+  td select, td input[type="number"] {
+    appearance: none; width: 100%; min-width: 96px;
+    background: rgba(0,12,60,.6); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.35); border-radius: 3px;
+    padding: 5px 7px; font-family: var(--sans); font-size: .85rem;
+  }
+  td input[type="number"] { font-family: var(--mono); text-align: right; min-width: 76px; }
+  td select:focus-visible, td input:focus-visible { outline: 2px solid var(--givre); }
+  td select.vide { color: var(--du); border-color: rgba(217,164,65,.5); }
+  td select:disabled, td input:disabled { opacity: .45; cursor: not-allowed; }
+  tr.enregistre { animation: flash 1.1s ease-out; }
+  @keyframes flash { from { background: rgba(79,178,134,.22); } to { background: transparent; } }
+
+  td input[type="text"] {
+    width: 100%; min-width: 108px;
+    background: rgba(0,12,60,.6); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.35); border-radius: 3px;
+    padding: 5px 7px; font-family: var(--sans); font-size: .85rem;
+  }
+  td input.nom-large { min-width: 130px; text-transform: uppercase; }
+  td input.prenoms-large { min-width: 170px; }
+  td input[type="text"]:focus-visible { outline: 2px solid var(--givre); }
+  td input[type="text"]:disabled { opacity: .45; cursor: not-allowed; }
+  td input.petit-nb { min-width: 58px; width: 58px; }
+  th.milieu, td.coche { text-align: center; }
+  td.coche input[type="checkbox"] {
+    width: 19px; height: 19px; cursor: pointer;
+    accent-color: #4FB286;
+  }
+  td.coche input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .4; }
+  td.coche input:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
+
+  .melange { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 20px; }
+  .melange .un { text-align: center; }
+  .melange .qui { display: block; font-size: .95rem; color: var(--blanc); font-weight: 600; margin-top: 4px; }
+  .melange .tot { display: block; font-family: var(--mono); font-size: .78rem; color: var(--gris-bleu); }
+  .melange .mix { display: block; margin-top: 7px; font-family: var(--mono); font-size: .76rem; color: var(--median); line-height: 1.7; }
+  .melange .mix b { color: var(--argent); font-weight: 600; }
+  .melange .creux { font-family: var(--mono); fill: var(--givre); text-anchor: middle; font-size: 26px; }
+  .legende-plate { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 20px; padding: 0; list-style: none; font-size: .85rem; }
+  .legende-plate li { display: flex; align-items: center; gap: 7px; color: var(--gris-bleu); }
+  .legende-plate i { width: 11px; height: 11px; border-radius: 2px; border: 1px solid rgba(0,12,60,.5); }
+
+  .ajout {
+    display: flex; gap: 9px; flex-wrap: wrap; align-items: center;
+    padding: 14px 16px; margin-bottom: 16px;
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.3);
+    border-left: 2px solid var(--regle); border-radius: var(--pas);
+  }
+  .ajout input, .ajout select {
+    appearance: none;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 8px 11px; font-family: var(--sans); font-size: .88rem;
+  }
+  .ajout #a-nom { flex: 1 1 150px; min-width: 130px; text-transform: uppercase; }
+  .ajout #a-prenoms { flex: 2 1 220px; min-width: 170px; }
+  .ajout button {
+    appearance: none; cursor: pointer;
+    background: rgba(79,178,134,.16); color: var(--regle);
+    border: 1px solid rgba(79,178,134,.5); border-radius: 3px;
+    padding: 8px 15px; font-family: var(--sans); font-size: .88rem; font-weight: 600;
+  }
+  .ajout button:hover { background: rgba(79,178,134,.26); }
+  .ajout button:disabled { opacity: .4; cursor: not-allowed; }
+  .ajout input:focus-visible, .ajout select:focus-visible, .ajout button:focus-visible {
+    outline: 2px solid var(--givre); outline-offset: 1px;
+  }
+  tr.nouvelle td:first-child { box-shadow: inset 3px 0 0 var(--regle); }
+
+  /* retirer une invitation : un geste réversible, jamais une perte */
+  .geste {
+    appearance: none; cursor: pointer;
+    background: none; border: 1px solid rgba(99,127,166,.4);
+    border-radius: 3px; padding: 4px 9px;
+    font-family: var(--sans); font-size: .8rem; color: var(--gris-bleu);
+    white-space: nowrap;
+  }
+  .geste:hover { color: var(--alerte); border-color: rgba(230,138,138,.55); }
+  .geste.rendre:hover { color: var(--regle); border-color: rgba(79,178,134,.55); }
+  .geste:focus-visible { outline: 2px solid var(--givre); outline-offset: 1px; }
+  .geste:disabled { opacity: .4; cursor: not-allowed; }
+  tr.retiree td { color: var(--gris-bleu); }
+  tr.retiree td:first-child { text-decoration: line-through; }
+  .retrait-compte {
+    margin: 0 0 14px; font-size: .88rem; color: var(--gris-bleu);
+    padding: 10px 14px; border-radius: var(--pas);
+    background: rgba(99,127,166,.1); border: 1px solid rgba(99,127,166,.25);
+  }
+  .retrait-compte:empty { display: none; }
+  .retrait-compte b { font-family: var(--mono); color: var(--argent); font-weight: 600; }
+
+  /* ---------- rail des dates ---------- */
+  .rail { list-style: none; margin: 0; padding: 0; }
+  .rail li { position: relative; padding: 0 0 26px 28px; border-left: 1px solid rgba(99,127,166,.34); }
+  .rail li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .rail li::before {
+    content: ""; position: absolute; left: -5px; top: 7px; width: 9px; height: 9px;
+    background: var(--nuit); border: 1px solid var(--median); transform: rotate(45deg);
+  }
+  .rail li.fait::before { background: var(--median); }
+  .rail li.encours::before { background: var(--du); border-color: var(--du); box-shadow: 0 0 0 4px rgba(217,164,65,.18); }
+  .rail .quand { display: block; font-family: var(--mono); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--median); }
+  .rail .quoi { display: block; font-size: 1.02rem; color: var(--blanc); margin-top: 1px; }
+  .rail li.encours .quoi { color: var(--du); font-weight: 600; }
+  .rail li.fait .quand, .rail li.fait .quoi { color: var(--gris-bleu); }
+  .rail .note { color: var(--gris-bleu); font-size: .88rem; }
+
+  .ouverts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .ouverts li {
+    padding: 12px 15px; background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.28); border-left: 2px solid var(--du);
+    border-radius: var(--pas); font-size: .93rem;
+  }
+  .ouverts b { color: var(--blanc); font-weight: 600; }
+
+  /* ---------- week-end : reperes et decisions modifiables ---------- */
+  .wk-barre { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; }
+  .wk-barre .compte { font-family: var(--mono); font-size: .85rem; color: var(--gris-bleu); margin-left: auto; }
+
+  .mini {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 3px 10px; font-family: var(--sans); font-size: .79rem; color: var(--gris-bleu);
+    white-space: nowrap;
+  }
+  .mini:hover { color: var(--givre); border-color: rgba(220,236,250,.5); }
+  .mini.sup:hover { color: var(--alerte); border-color: rgba(230,138,138,.55); }
+  .mini.rendre:hover { color: var(--regle); border-color: rgba(79,178,134,.55); }
+  .mini.vert { color: var(--regle); border-color: rgba(79,178,134,.5); background: rgba(79,178,134,.14); }
+  .mini:focus-visible { outline: 2px solid var(--givre); outline-offset: 1px; }
+  .mini:disabled { opacity: .4; cursor: not-allowed; }
+  .gestes { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+
+  .champ {
+    display: block; width: 100%;
+    background: rgba(0,12,60,.6); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.35); border-radius: 3px;
+    padding: 6px 9px; font-family: var(--sans); font-size: .88rem;
+  }
+  .champ:focus-visible { outline: 2px solid var(--givre); }
+  .champ:disabled { opacity: .45; cursor: not-allowed; }
+  textarea.champ { resize: vertical; min-height: 64px; line-height: 1.55; }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 9px; }
+  .etiq {
+    display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--median); margin: 9px 0 3px;
+  }
+  .forme { display: grid; gap: 1px; }
+  .forme.neuf {
+    padding: 14px 16px; margin-bottom: 18px;
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.3);
+    border-left: 2px solid var(--regle); border-radius: var(--pas);
+  }
+  .forme.neuf > .etiq:first-child { margin-top: 0; }
+
+  .rail li.retire { opacity: .48; }
+  .rail li.retire .quoi { text-decoration: line-through; }
+  .rail li.edition { padding-bottom: 30px; }
+
+  .ouverts li.tranche { border-left-color: var(--regle); }
+  .ouverts li.retire { opacity: .48; border-left-color: var(--median); }
+  .ouverts li.retire .titre { text-decoration: line-through; }
+  .ouverts .titre { display: block; color: var(--blanc); font-weight: 600; }
+  .pastille {
+    display: inline-block; font-family: var(--mono); font-size: .68rem;
+    letter-spacing: .09em; text-transform: uppercase; padding: 1px 9px;
+    border-radius: 999px; margin-bottom: 7px;
+  }
+  .pastille.ouvert { color: var(--du); background: rgba(217,164,65,.14); border: 1px solid rgba(217,164,65,.45); }
+  .pastille.tranche { color: var(--regle); background: rgba(79,178,134,.14); border: 1px solid rgba(79,178,134,.45); }
+  .qui-suit { font-family: var(--mono); font-size: .75rem; color: var(--median); }
+  .bascule { display: inline-flex; }
+  .bascule button {
+    appearance: none; cursor: pointer; background: var(--nuit); color: var(--gris-bleu);
+    border: 1px solid rgba(99,127,166,.4);
+    padding: 4px 12px; font-family: var(--sans); font-size: .8rem;
+  }
+  .bascule button:first-child { border-radius: 3px 0 0 3px; }
+  .bascule button:last-child { border-radius: 0 3px 3px 0; border-left: none; }
+  .bascule button[aria-pressed="true"] { background: rgba(79,178,134,.18); color: var(--regle); border-color: rgba(79,178,134,.5); }
+  .bascule button[aria-pressed="true"]:first-child { background: rgba(217,164,65,.16); color: var(--du); border-color: rgba(217,164,65,.5); }
+  .bascule button:disabled { opacity: .45; cursor: not-allowed; }
+  li.enregistre { animation: flash 1.1s ease-out; }
+
+  .jauge { height: 6px; margin-top: 9px; background: rgba(99,127,166,.24); border-radius: 3px; overflow: hidden; }
+  .jauge i { display: block; height: 100%; border-radius: 3px; background: var(--regle); }
+  .encaissement .haut { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .88rem; color: var(--gris-bleu); }
+  .encaissement .haut b { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--blanc); }
+
+  footer {
+    margin-top: 48px; padding-top: 20px;
+    border-top: 1px solid rgba(99,127,166,.26);
+    color: var(--median); font-size: .83rem; line-height: 1.7;
+  }
+  footer b { color: var(--gris-bleu); font-weight: 600; }
+  a { color: var(--givre); }
+
+  @media (max-width: 620px) {
+    .contrib-ligne { grid-template-columns: 86px 1fr 66px; gap: 9px; }
+    .outils .compte { margin-left: 0; }
+    td, th { padding-left: 8px; padding-right: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* ---------- la porte ---------- */
+  #porte {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: var(--nuit);
+  }
+  #porte[hidden] { display: none; }
+  .porte-boite {
+    width: 100%; max-width: 440px;
+    padding: 30px 28px 26px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.32);
+    border-top: 2px solid var(--givre);
+    border-radius: var(--pas);
+  }
+  .porte-boite h2 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.7rem; color: var(--blanc); letter-spacing: .01em;
+  }
+  .porte-boite .sous {
+    margin: 6px 0 22px; color: var(--gris-bleu); font-size: .92rem;
+  }
+  .porte-boite label {
+    display: block; font-family: var(--mono); font-size: .7rem;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--median); margin-bottom: 5px;
+  }
+  .porte-boite input[type="email"] {
+    width: 100%; margin-bottom: 14px;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: 3px;
+    padding: 10px 12px; font-family: var(--sans); font-size: .95rem;
+  }
+  .porte-boite input:focus-visible { outline: 2px solid var(--givre); outline-offset: 1px; }
+  .porte-boite button {
+    appearance: none; cursor: pointer; width: 100%;
+    background: rgba(220,236,250,.14); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.45); border-radius: 3px;
+    padding: 11px 16px; font-family: var(--sans); font-size: .95rem; font-weight: 600;
+  }
+  .porte-boite button:hover { background: rgba(220,236,250,.22); }
+  .porte-boite button:disabled { opacity: .45; cursor: not-allowed; }
+  .porte-mot { margin: 14px 0 0; font-size: .88rem; color: var(--gris-bleu); }
+  .porte-mot:empty { display: none; }
+  .porte-mot.raté { color: var(--alerte); }
+  .porte-boite .appoint {
+    margin: 20px 0 0; padding-top: 16px;
+    border-top: 1px solid rgba(99,127,166,.24);
+    font-size: .83rem; color: var(--median); line-height: 1.65;
+  }
+  .porte-boite b { color: var(--argent); font-weight: 600; }
+  #porte-attente[hidden], #porte-refus[hidden], #porte-forme[hidden] { display: none; }
+
+  #moi {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px; margin: -6px 0 12px;
+    font-family: var(--mono); font-size: .76rem; color: var(--median);
+  }
+  #moi[hidden] { display: none; }
+  #moi b { color: var(--argent); font-weight: 600; }
+  #deconnexion {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 3px 9px; font-family: var(--sans); font-size: .76rem; color: var(--gris-bleu);
+  }
+  #deconnexion:hover { color: var(--givre); border-color: rgba(220,236,250,.5); }
+</style>
+
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <pattern id="hachure" width="7" height="7" patternUnits="userSpaceOnUse"
+             patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="#243B63"></rect>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#5A6E88" stroke-width="3"></line>
+    </pattern>
+  </defs>
+</svg>
+
+
+<div id="porte" hidden>
+  <div class="porte-boite">
+    <h2>Bleu, Chic &amp; Givré</h2>
+    <p class="sous">Espace des organisateurs. On entre par son adresse mail, sans mot de passe.</p>
+
+    <form id="porte-forme" hidden>
+      <label for="porte-mail">Ton adresse mail</label>
+      <input type="email" id="porte-mail" autocomplete="email" required
+             placeholder="prenom@exemple.fr">
+      <button type="submit" id="porte-ok">Recevoir mon lien de connexion</button>
+    </form>
+
+    <div id="porte-attente" hidden>
+      <p>Un lien vient de partir vers <b id="porte-adresse"></b>.</p>
+      <p class="sous">Ouvre-le depuis ce téléphone ou cet ordinateur et tu seras
+        connecté. Le lien ne sert qu'une fois, et il expire au bout d'une heure.
+        Regarde les indésirables s'il tarde.</p>
+    </div>
+
+    <div id="porte-refus" hidden>
+      <p><b id="porte-refus-mail"></b> ne fait pas partie de l'équipe.</p>
+      <p class="sous">Demande à Mickaël d'ajouter cette adresse, ou reconnecte-toi
+        avec celle qu'il a inscrite.</p>
+    </div>
+
+    <p class="porte-mot" id="porte-mot"></p>
+
+    <p class="appoint">La liste des invités, les montants et les coordonnées
+      n'existent que derrière cette porte : rien de tout cela n'est écrit dans la
+      page elle-même.</p>
+  </div>
+</div>
+
+<header class="entete">
+  <h1>Bleu, Chic&nbsp;&amp;&nbsp;Givré</h1>
+  <p class="quand">
+    Samedi <b>19 décembre 2026</b> à <b>18h30</b> · Salle des fêtes, 21 route de Saint Didier, Le Passage
+  </p>
+</header>
+
+<div class="rebours">
+  <div class="bloc"><b id="j">—</b><span>jours</span></div>
+  <div class="bloc"><b id="h">—</b><span>heures</span></div>
+  <div class="bloc"><b id="m">—</b><span>min</span></div>
+  <div class="bloc"><b id="s">—</b><span>sec</span></div>
+  <span class="sep">·</span>
+  <span class="limite" id="limite">—</span>
+</div>
+
+<div id="moi" hidden>connecté en tant que <b id="moi-nom"></b>
+  <button type="button" id="deconnexion">Se déconnecter</button>
+</div>
+<div class="page">
+  <nav class="onglets" role="tablist" aria-label="Sections">
+    <button role="tab" id="t-apercu" aria-controls="v-apercu" aria-selected="true">Où on en est</button>
+    <button role="tab" id="t-invitations" aria-controls="v-invitations" aria-selected="false">Les invitations<span class="pastille-nb" id="badge-invit"></span></button>
+    <button role="tab" id="t-buffet" aria-controls="v-buffet" aria-selected="false">Le buffet<span class="pastille-nb" id="badge-buffet"></span></button>
+    <button role="tab" id="t-argent" aria-controls="v-argent" aria-selected="false">L'argent</button>
+    <button role="tab" id="t-weekend" aria-controls="v-weekend" aria-selected="false">Le week-end</button>
+  </nav>
+
+  <div class="volet" role="tabpanel" id="v-apercu" aria-labelledby="t-apercu">
+    <div id="alerte-jauge"></div>
+    <section>
+      <div class="stats">
+        <div class="panneau large">
+          <div class="jauge-arc">
+            <svg id="arc" width="250" height="152" viewBox="0 0 250 152" role="img" aria-labelledby="arc-t">
+              <title id="arc-t">Progression vers l'objectif de participation</title>
+            </svg>
+            <div class="lecture">
+              <h3>Le remplissage</h3>
+              <p id="arc-phrase">—</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panneau large">
+          <h3>Les 38 places de chacun</h3>
+          <p class="sous">
+            192 places pour cinq organisateurs, qui ne se comptent pas eux-mêmes.
+            Répartition visée du buffet : 35 % salé, 40 % spécialité, 25 % sucré.
+          </p>
+          <div class="defile">
+            <table>
+              <thead><tr>
+                <th scope="col">Organisateur</th>
+                <th scope="col" class="droite">Invit.</th>
+                <th scope="col" class="droite">Pers.</th>
+                <th scope="col" class="droite">Écart à 38</th>
+                <th scope="col">Salé · Spé · Sucré</th>
+                <th scope="col" class="droite">Sans contrib.</th>
+              </tr></thead>
+              <tbody id="quotas"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panneau">
+          <h3>Qui vient</h3>
+          <p class="sous">Adultes et moins de 15 ans, tarifs différents.</p>
+          <div class="empilee" id="composition"></div>
+          <ul class="legende" id="composition-legende" style="margin-top:12px"></ul>
+        </div>
+
+        <div class="panneau">
+          <h3>Où en sont les réponses</h3>
+          <p class="sous">Une invitation reste en attente tant qu'elle n'a pas répondu.</p>
+          <div class="empilee" id="statuts"></div>
+          <ul class="legende" id="statuts-legende" style="margin-top:12px"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="volet" role="tabpanel" id="v-invitations" aria-labelledby="t-invitations" hidden>
+    <section>
+      <h2>Les invitations</h2>
+      <p class="chapeau">
+        Attribue ici la contribution de chacun — c'est la version de l'invitation que tu lui
+        remets qui fixe ce qu'il apporte — et note les réponses au fur et à mesure.
+      </p>
+      <div class="etat-saisie" id="etat-saisie">Connexion à la feuille partagée…</div>
+      <p class="retrait-compte" id="retrait-compte"></p>
+      <form class="ajout" id="ajout">
+        <input type="text" id="a-nom" placeholder="NOM de famille" aria-label="Nom de famille" autocomplete="off">
+        <input type="text" id="a-prenoms" placeholder="Prénoms, séparés par des virgules" aria-label="Prénoms" autocomplete="off">
+        <select id="a-par" aria-label="Invité par"></select>
+        <button type="submit" id="a-ok" disabled>Ajouter l'invitation</button>
+      </form>
+      <div class="outils">
+        <input type="search" id="recherche" placeholder="Chercher un nom, un prénom…" aria-label="Chercher">
+        <select id="filtre-par" aria-label="Filtrer par organisateur"><option value="">Tous les organisateurs</option></select>
+        <select id="filtre-contrib" aria-label="Filtrer par contribution">
+          <option value="">Toutes contributions</option>
+          <option value="Salé">Salé</option>
+          <option value="Sucré">Sucré</option>
+          <option value="Spécialité">Spécialité</option>
+          <option value="sans">Sans contribution</option>
+        </select>
+        <select id="filtre-etat" aria-label="Filtrer par état">
+          <option value="">Toutes les invitations</option>
+          <option value="nonenvoyee">Pas encore envoyées</option>
+          <option value="envoyee">Envoyées</option>
+          <option value="attente">Sans réponse</option>
+          <option value="confirme">Acceptées</option>
+          <option value="refuse">Refusées</option>
+          <option value="du">Reste à payer</option>
+          <option value="retirees">Retirées</option>
+        </select>
+        <span class="groupe-tri">
+          <select id="tri" aria-label="Trier d'abord par">
+            <option value="nom">Trier par nom</option>
+            <option value="prenoms">par prénoms</option>
+            <option value="par">par organisateur</option>
+            <option value="personnes">par taille du foyer</option>
+            <option value="contribution">par contribution</option>
+            <option value="statut">par réponse</option>
+            <option value="envoyee">par envoi</option>
+            <option value="reste">par reste à payer</option>
+          </select>
+          <button type="button" id="sens" aria-label="Inverser le sens du tri" title="Inverser le sens">↑</button>
+          <select id="tri2" aria-label="Puis trier par">
+            <option value="">puis rien</option>
+            <option value="nom">puis par nom</option>
+            <option value="prenoms">puis par prénoms</option>
+            <option value="par">puis par organisateur</option>
+            <option value="personnes">puis par taille</option>
+            <option value="contribution">puis par contribution</option>
+            <option value="statut">puis par réponse</option>
+            <option value="reste">puis par reste à payer</option>
+          </select>
+        </span>
+        <button type="button" id="raz" class="geste">Tout afficher</button>
+        <span class="compte" id="compte-lignes"></span>
+      </div>
+      <div class="defile">
+        <table>
+          <thead><tr>
+            <th scope="col">Nom</th>
+            <th scope="col">Prénoms</th>
+            <th scope="col">Par</th>
+            <th scope="col" class="droite">Pers.</th>
+            <th scope="col" class="droite">− 15 ans</th>
+            <th scope="col">Contribution</th>
+            <th scope="col" class="milieu">Envoyée</th>
+            <th scope="col">Réponse</th>
+            <th scope="col" class="milieu">Réglé</th>
+            <th scope="col" class="droite">Reçu</th>
+            <th scope="col" class="droite">Reste</th>
+            <th scope="col"></th>
+          </tr></thead>
+          <tbody id="corps-invites"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="volet" role="tabpanel" id="v-buffet" aria-labelledby="t-buffet" hidden>
+    <section>
+      <h2>Le buffet</h2>
+      <p class="chapeau">
+        Trois versions de l'invitation circulent, et une seule contribution est demandée à
+        chacun. La barre claire marque la part visée.
+      </p>
+      <div class="stats">
+        <div class="panneau">
+          <h3>La répartition</h3>
+          <p class="sous">Ce que chaque invitation apportera.</p>
+          <div class="camembert">
+            <svg id="camembert" width="230" height="230" viewBox="0 0 230 230" role="img" aria-labelledby="cam-t">
+              <title id="cam-t">Répartition des contributions du buffet</title>
+            </svg>
+            <ul class="legende" id="camembert-legende"></ul>
+          </div>
+        </div>
+        <div class="panneau">
+          <h3>Par rapport à la cible</h3>
+          <p class="sous">Part de chaque contribution sur l'ensemble des invitations.
+            Cible : 35 % salé, 40 % spécialité, 25 % sucré.</p>
+          <div class="contrib" id="contributions"></div>
+        </div>
+        <div class="panneau large">
+          <div class="grille" id="cartes-buffet"></div>
+        </div>
+
+        <div class="panneau large">
+          <h3>Ce qu'il reste à attribuer</h3>
+          <p class="sous" id="reste-sous">—</p>
+          <div class="defile">
+            <table>
+              <thead><tr>
+                <th scope="col">Contribution</th>
+                <th scope="col" class="droite">Attribuées</th>
+                <th scope="col" class="droite">Part</th>
+                <th scope="col" class="droite">Cible</th>
+                <th scope="col" class="droite">Écart</th>
+                <th scope="col" class="droite">À donner</th>
+              </tr></thead>
+              <tbody id="manque-buffet"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panneau large">
+          <h3>Le mélange de chacun</h3>
+          <p class="sous">
+            Comment chacun a réparti ses invitations. La cible est 35 % salé,
+            40 % spécialité, 25 % sucré.
+          </p>
+          <ul class="legende-plate" id="melange-legende"></ul>
+          <div class="melange" id="melange"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="volet" role="tabpanel" id="v-argent" aria-labelledby="t-argent" hidden>
+    <section>
+      <h2>Où en est l'argent</h2>
+      <p class="chapeau">8 € par adulte, 3 € pour les moins de 15 ans.</p>
+      <div class="grille" id="cartes-argent"></div>
+      <div class="encaissement" style="margin-top:18px">
+        <div class="haut"><span>Part encaissée du montant attendu</span><b id="part-encaissee">—</b></div>
+        <div class="jauge"><i id="jauge-paiement" style="width:0%"></i></div>
+      </div>
+      <p class="chapeau" style="margin-top:24px">
+        <b>Le seuil à garder en tête.</b> L'édition <em>Gold&nbsp;&amp;&nbsp;Diamant</em> a coûté
+        <span class="chiffre">1&nbsp;207,23&nbsp;€</span> le samedi — DJ 400 €, décoration 302 €,
+        salle 284 €. Mais la salle est louée pour <b>tout le week-end</b> et la fête du dimanche
+        en profite autant ; sa répartition n'est pas tranchée. Selon l'issue, il faut entre
+        <span class="chiffre">116</span> et <span class="chiffre">151</span> adultes payants
+        pour rentrer dans les frais.
+      </p>
+      <div class="panneau" style="margin-top:20px">
+        <h3>La taille des foyers</h3>
+        <p class="sous">Utile pour disposer les tables.</p>
+        <div class="colonnes" id="foyers"></div>
+        <p id="sans-prenom" class="manquant" style="font-size:.86rem;margin:14px 0 0"></p>
+      </div>
+    </section>
+  </div>
+
+    <div class="volet" role="tabpanel" id="v-weekend" aria-labelledby="t-weekend" hidden>
+    <section>
+      <h2>Les dates qui comptent</h2>
+      <p class="chapeau">
+        Les repères du week-end, tenus à jour par l'équipe. Chacun peut corriger une
+        date, reformuler un repère ou en ajouter un : la modification est partagée
+        aussitôt, et elle ne vit que sur cette page.
+      </p>
+
+      <form class="forme neuf" id="jalon-neuf">
+        <span class="etiq">Ajouter un repère</span>
+        <div class="duo">
+          <input type="date" class="champ" id="jn-debut" aria-label="Date de début" required>
+          <input type="date" class="champ" id="jn-fin" aria-label="Date de fin">
+        </div>
+        <span class="etiq">Ce qui se passe</span>
+        <input type="text" class="champ" id="jn-quoi" placeholder="Réunion de calage" required>
+        <span class="etiq">Précision</span>
+        <input type="text" class="champ" id="jn-note" placeholder="Pourquoi ce repère compte">
+        <div class="gestes">
+          <button type="submit" class="mini vert" id="jn-ok" disabled>Ajouter le repère</button>
+        </div>
+      </form>
+
+      <ul class="rail" id="rail"></ul>
+    </section>
+
+    <section>
+      <h2>Ce qui n'est pas tranché</h2>
+      <div class="wk-barre">
+        <p class="sous" style="margin:0">
+          Coche <b>Tranché</b> quand la décision est prise, et écris-la :
+          c'est ce qui évite de la reprendre trois fois.
+        </p>
+        <span class="compte" id="compte-ouverts">&mdash;</span>
+      </div>
+
+      <form class="forme neuf" id="ouvert-neuf">
+        <span class="etiq">Ajouter un point à trancher</span>
+        <input type="text" class="champ" id="on-titre" placeholder="Le transport du matériel" required>
+        <span class="etiq">De quoi il s'agit</span>
+        <textarea class="champ" id="on-detail" placeholder="Ce qu'il faut savoir pour décider"></textarea>
+        <span class="etiq">Qui s'en occupe</span>
+        <select class="champ" id="on-par"></select>
+        <div class="gestes">
+          <button type="submit" class="mini vert" id="on-ok" disabled>Ajouter le point</button>
+        </div>
+      </form>
+
+      <ul class="ouverts" id="ouverts"></ul>
+    </section>
+  </div>
+
+  <footer>
+    <p>
+      Chiffres du classeur <b>Liste soirée — Bleu Chic &amp; Givré.xlsx</b>, arrêtés au
+      <b id="arrete">—</b>. Les compteurs de temps se mettent à jour seuls.
+      <span id="mot-saisie"></span>
+    </p>
+    <p>
+      <b>Les coordonnées bancaires ne figurent pas ici volontairement.</b> Elles sont sur les
+      trois invitations et dans l'onglet <em>Paramètres</em> du classeur. Cette page circule
+      entre organisateurs ; un IBAN en ligne, non.
+    </p>
+  </footer>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="acces.js"></script>
+<script>
+function demarrer() {
+  "use strict";
+
+  var D = DONNEES;
+  var SOIREE = new Date(2026, 11, 19, 18, 30, 0);
+  var LIMITE = new Date(2026, 9, 19, 23, 59, 59);
+  var CONTRIBUTIONS = ["Salé", "Sucré", "Spécialité"];
+  // le classeur dit « Confirmé / En attente / Annulé » ; la page parle
+  // la langue des organisateurs, la correspondance tient dans ce tableau
+  var REPONSES = [
+    { code: "En attente", mot: "En attente" },
+    { code: "Confirmé", mot: "Acceptée" },
+    { code: "Annulé", mot: "Refusée" }
+  ];
+  var TEINTES = { "Salé": "#63A6EC", "Spécialité": "#EE9A55", "Sucré": "#DE7FD4" };
+  var VIDE = "#5A6E88";                     // le non-attribué, toujours hachuré
+  var DUO = ["#7FBDF2", "#2A5E9E"];         // adultes / moins de 15 ans
+  var TEINTE_STATUT = { "Confirmé": "#4FB286", "En attente": "#D9A441", "Annulé": "#627FA6" };
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  var euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+  var pourcent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 });
+
+  function $(id) { return document.getElementById(id); }
+  function creer(t, c, x) {
+    var e = document.createElement(t);
+    if (c) { e.className = c; }
+    if (x !== undefined) { e.textContent = x; }
+    return e;
+  }
+  function svg(t, a) {
+    var e = document.createElementNS(SVGNS, t);
+    for (var k in a) { e.setAttribute(k, a[k]); }
+    return e;
+  }
+  function accorde(n, un, plusieurs) { return n + " " + (Math.abs(n) > 1 ? plusieurs : un); }
+
+  /** Peint une pastille de légende. Le « non attribué » n'est pas une couleur
+      de plus : c'est un vide, donc une hachure — elle se distingue même en
+      noir et blanc, et ne consomme pas une teinte du nuancier. */
+  function peindre(element, couleur, hachure) {
+    if (hachure) {
+      element.style.background =
+        "repeating-linear-gradient(45deg, #243B63 0 3px, " + couleur + " 3px 6px)";
+    } else {
+      element.style.background = couleur;
+    }
+  }
+
+  /** Une cellule portant un champ texte qui n'écrit qu'après une pause de frappe. */
+  function champTexte(etiquette, valeur, classe, inerte, action) {
+    var td = creer("td");
+    var e = document.createElement("input");
+    e.type = "text";
+    e.value = valeur || "";
+    e.className = classe || "";
+    e.disabled = !!inerte;
+    e.setAttribute("aria-label", etiquette);
+    var minuteur = null;
+    e.addEventListener("input", function () {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(function () { action(e.value.trim()); }, 800);
+    });
+    e.addEventListener("blur", function () { clearTimeout(minuteur); action(e.value.trim()); });
+    td.appendChild(e);
+    return td;
+  }
+
+  /** Une cellule portant un petit champ numérique. */
+  function champNombre(etiquette, valeur, inerte, action) {
+    var td = creer("td", "nombre");
+    var e = document.createElement("input");
+    e.type = "number";
+    e.min = "0";
+    e.step = "1";
+    e.className = "petit-nb";
+    e.value = String(valeur || 0);
+    e.disabled = !!inerte;
+    e.setAttribute("aria-label", etiquette);
+    var minuteur = null;
+    e.addEventListener("input", function () {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(function () { action(e.value === "" ? 0 : Number(e.value)); }, 700);
+    });
+    td.appendChild(e);
+    return td;
+  }
+
+  /** Une cellule portant une seule case à cocher, étiquetée pour les lecteurs d'écran. */
+  function coche(etiquette, cochee, inerte, action) {
+    var td = creer("td", "coche");
+    var c = document.createElement("input");
+    c.type = "checkbox";
+    c.checked = !!cochee;
+    c.disabled = !!inerte;
+    c.setAttribute("aria-label", etiquette);
+    c.addEventListener("change", function () { action(c.checked); });
+    td.appendChild(c);
+    return td;
+  }
+
+  /* ---------------- onglets ---------------- */
+
+  var onglets = [].slice.call(document.querySelectorAll('[role="tab"]'));
+  function montrer(id) {
+    onglets.forEach(function (b) {
+      var actif = b.id === "t-" + id;
+      b.setAttribute("aria-selected", actif ? "true" : "false");
+      $(b.getAttribute("aria-controls")).hidden = !actif;
+    });
+    if (location.hash !== "#" + id) { history.replaceState(null, "", "#" + id); }
+  }
+  onglets.forEach(function (b) {
+    b.addEventListener("click", function () { montrer(b.id.slice(2)); });
+    b.addEventListener("keydown", function (e) {
+      var i = onglets.indexOf(b), n = null;
+      if (e.key === "ArrowRight") { n = onglets[(i + 1) % onglets.length]; }
+      if (e.key === "ArrowLeft") { n = onglets[(i - 1 + onglets.length) % onglets.length]; }
+      if (n) { e.preventDefault(); n.focus(); montrer(n.id.slice(2)); }
+    });
+  });
+  var depart = (location.hash || "").slice(1);
+  montrer(onglets.some(function (b) { return b.id === "t-" + depart; }) ? depart : "apercu");
+
+  /* ---------------- compte à rebours ---------------- */
+
+  function deux(n) { return (n < 10 ? "0" : "") + n; }
+  function battre() {
+    var m = new Date(), reste = SOIREE - m;
+    if (reste <= 0) {
+      ["j", "h", "m", "s"].forEach(function (k) { $(k).textContent = "—"; });
+    } else {
+      var sec = Math.floor(reste / 1000);
+      $("j").textContent = Math.floor(sec / 86400);
+      $("h").textContent = deux(Math.floor(sec / 3600) % 24);
+      $("m").textContent = deux(Math.floor(sec / 60) % 60);
+      $("s").textContent = deux(sec % 60);
+    }
+    var jl = Math.ceil((LIMITE - m) / 86400000);
+    $("limite").textContent = jl > 0 ? accorde(jl, "jour", "jours") + " avant le 19 octobre"
+      : (jl === 0 ? "échéance aujourd'hui" : accorde(-jl, "jour de retard", "jours de retard"));
+  }
+  battre();
+  setInterval(battre, 1000);
+
+  /* ---------------- le week-end : reperes et decisions ----------------
+
+     Ces deux listes ne viennent pas du classeur : elles n'y ont pas de
+     colonne. Leur etat de depart est ecrit ici, et tout ce que l'equipe
+     change vit dans la feuille partagee, un document par repere. Un repere
+     d'origine jamais touche n'a donc aucun document : c'est ce qui permet
+     d'en corriger le texte plus tard sans ecraser personne. */
+
+  var JALONS_DEFAUT = [
+    { id: "j1", debut: "2026-09-19", fin: "2026-10-18",
+      quand: "19 septembre 2026", quoi: "Envoi des invitations",
+      note: "Trois mois pile avant la fête. Chacun priorise ses 38 places et ajuste "
+          + "ensuite selon les réponses." },
+    { id: "j2", debut: "2026-10-01", fin: "2026-10-19",
+      quand: "19 octobre 2026", quoi: "Réponses et règlements",
+      note: "Date annoncée sur l'invitation. L'an dernier, à six jours de la fête, "
+          + "seuls 22 % des participations étaient rentrées : les relances font tout." },
+    { id: "j3", debut: "2026-10-20", fin: "2026-12-18",
+      quand: "Du 20 octobre au 18 décembre", quoi: "Relances, achats, décoration",
+      note: "Deux relances prévues, comme l'an dernier. Chaque achat va dans l'onglet "
+          + "Dépenses, avec qui l'a avancé." },
+    { id: "j4", debut: "2026-12-19", fin: "2026-12-19",
+      quand: "Samedi 19 décembre, 8 h", quoi: "Le seul créneau de préparation",
+      note: "La salle n'est à nous qu'à partir de 8 h, et la journée est prise "
+          + "ensuite : réunion l'après-midi, soirée le soir." },
+    { id: "j5", debut: "2026-12-19", fin: "2026-12-20",
+      quand: "Samedi 19 décembre, 18h30", quoi: "La soirée",
+      note: "Puis le rangement, la nuit même : la salle doit être rendue en état "
+          + "pour le lendemain matin." },
+    { id: "j6", debut: "2026-12-20", fin: "2026-12-21",
+      quand: "Dimanche 20 décembre, 12 h", quoi: "La salle passe à la fête de l'assemblée",
+      note: "« Tour du monde », même adresse. Le dimanche matin sert à basculer la "
+          + "décoration — et il dépend de l'heure à laquelle la soirée se termine." }
+  ];
+
+  var OUVERTS_DEFAUT = [
+    { id: "o1", titre: "Qui vient, puisque tout le monde ne peut pas",
+      detail: "La salle est limitée à 192 personnes et la liste en compte davantage. "
+            + "Chacun priorise ses 38 places les plus importantes, et ajuste ensuite "
+            + "selon les réponses." },
+    { id: "o2", titre: "L'heure de fin de la musique",
+      detail: "Elle dépend du contrat de la salle et de l'arrêté municipal — mais pas "
+            + "seulement. Plus la soirée finit tard, moins le dimanche matin garde de "
+            + "marge pour installer la fête." },
+    { id: "o3", titre: "La répartition du coût de la salle",
+      detail: "Réservée pour le week-end, acompte de 110 € versé le 24 août. Quelle "
+            + "part revient à la soirée, quelle part à la fête ?" },
+    { id: "o4", titre: "L'équipe du samedi soir",
+      detail: "Ce qui manque est précis : une équipe de rangement le samedi soir, "
+            + "distincte de celle qui installe le dimanche matin." },
+    { id: "o5", titre: "L'alcool",
+      detail: "La fête du dimanche a tranché de ne pas en servir, pour ses raisons "
+            + "propres ; la soirée du samedi reste à décider." }
+  ];
+
+  var jalons = {};          // ce que la feuille partagee dit des reperes
+  var ouverts = {};         // ... et des points a trancher
+  var ecrireWk = null;      // pose par la feuille partagee quand elle repond
+  var ajouterWk = null;
+  var editJalon = null;     // l'identifiant en cours de reecriture, s'il y en a un
+  var editOuvert = null;
+
+  var MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+              "août", "septembre", "octobre", "novembre", "décembre"];
+
+  function jourFr(iso) {
+    if (!iso) { return ""; }
+    var d = new Date(iso + "T12:00:00");
+    if (isNaN(d)) { return iso; }
+    return d.getDate() + " " + MOIS[d.getMonth()] + " " + d.getFullYear();
+  }
+  function libelleDates(debut, fin) {
+    if (!debut) { return "Date à préciser"; }
+    if (!fin || fin === debut) { return jourFr(debut); }
+    return "Du " + jourFr(debut) + " au " + jourFr(fin);
+  }
+
+  /** Fusionne un repere d'origine avec ce que la feuille partagee en dit. */
+  function fondre(base, sur) {
+    var o = {}, k, j;
+    for (k in base) { o[k] = base[k]; }
+    if (sur) {
+      for (j in sur) {
+        if (sur[j] !== undefined && sur[j] !== null) { o[j] = sur[j]; }
+      }
+      o.retire = sur.retire === true;
+      o.tranche = sur.tranche === true;
+    }
+    return o;
+  }
+
+  function listeJalons() {
+    var vus = {}, out = [];
+    JALONS_DEFAUT.forEach(function (j) {
+      vus[j.id] = 1;
+      out.push(fondre(j, jalons[j.id]));
+    });
+    Object.keys(jalons).forEach(function (id) {
+      if (vus[id]) { return; }
+      out.push(fondre({ id: id, debut: "", fin: "", quand: "", quoi: "", note: "" }, jalons[id]));
+    });
+    out.sort(function (a, b) {
+      return (a.debut || "9999").localeCompare(b.debut || "9999");
+    });
+    return out;
+  }
+
+  function listeOuverts() {
+    var vus = {}, out = [], neufs = [];
+    OUVERTS_DEFAUT.forEach(function (o) {
+      vus[o.id] = 1;
+      out.push(fondre(o, ouverts[o.id]));
+    });
+    Object.keys(ouverts).forEach(function (id) {
+      if (vus[id]) { return; }
+      neufs.push(fondre({ id: id, titre: "", detail: "" }, ouverts[id]));
+    });
+    neufs.sort(function (a, b) { return (a.cree || "").localeCompare(b.cree || ""); });
+    return out.concat(neufs);
+  }
+
+  /** Enregistre l'etat complet d'un repere : un document se suffit a lui-meme,
+      on ne depend jamais de la version du texte d'origine publiee ce jour-la. */
+  function poserJalon(j, li) {
+    if (!ecrireWk) { return; }
+    var corps = {
+      debut: j.debut || "", fin: j.fin || "", quand: j.quand || "",
+      quoi: j.quoi || "", note: j.note || "", retire: j.retire === true,
+      cree: (jalons[j.id] && jalons[j.id].cree) || null
+    };
+    jalons[j.id] = corps;   // affiche tout de suite : l'instantane suivra
+    ecrireWk("jalons", j.id, corps, li);
+  }
+  function poserOuvert(o, li) {
+    if (!ecrireWk) { return; }
+    var corps = {
+      titre: o.titre || "", detail: o.detail || "", tranche: o.tranche === true,
+      decision: o.decision || "", par: o.par || "", retire: o.retire === true,
+      cree: (ouverts[o.id] && ouverts[o.id].cree) || null
+    };
+    ouverts[o.id] = corps;
+    ecrireWk("ouverts", o.id, corps, li);
+  }
+
+  /** Redessine sans faire perdre la frappe en cours : un instantane de la
+      feuille partagee peut arriver pendant qu'on ecrit une decision. */
+  function gardeFocus(dessiner) {
+    var a = document.activeElement;
+    var cle = a && a.id && (a.tagName === "INPUT" || a.tagName === "TEXTAREA") ? a.id : null;
+    var pos = null;
+    try { pos = cle ? a.selectionStart : null; } catch (e) { pos = null; }
+    dessiner();
+    if (cle) {
+      var r = $(cle);
+      if (r) {
+        r.focus();
+        if (pos !== null && r.setSelectionRange) {
+          try { r.setSelectionRange(pos, pos); } catch (e2) { /* champ date */ }
+        }
+      }
+    }
+  }
+
+  function boutonMini(texte, classe, action) {
+    var b = creer("button", "mini" + (classe ? " " + classe : ""), texte);
+    b.type = "button";
+    b.disabled = !ecrireWk;
+    b.addEventListener("click", action);
+    return b;
+  }
+
+  /** Un champ qui n'ecrit qu'apres une pause de frappe, comme dans la liste. */
+  function champLibre(id, valeur, place, action, multi) {
+    var e = document.createElement(multi ? "textarea" : "input");
+    if (!multi) { e.type = "text"; }
+    e.className = "champ";
+    e.id = id;
+    e.value = valeur || "";
+    if (place) { e.placeholder = place; }
+    e.disabled = !ecrireWk;
+    var minuteur = null;
+    e.addEventListener("input", function () {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(function () { action(e.value.trim()); }, 900);
+    });
+    e.addEventListener("blur", function () { clearTimeout(minuteur); action(e.value.trim()); });
+    return e;
+  }
+
+  function champDate(id, valeur, action) {
+    var e = document.createElement("input");
+    e.type = "date";
+    e.className = "champ";
+    e.id = id;
+    e.value = valeur || "";
+    e.disabled = !ecrireWk;
+    e.addEventListener("change", function () { action(e.value); });
+    return e;
+  }
+
+  function etiquette(texte) { return creer("span", "etiq", texte); }
+
+  /** La meme liste d'organisateurs que dans l'onglet des invitations. */
+  function remplirOrganisateurs(sel, choisi, vide) {
+    sel.textContent = "";
+    var o0 = creer("option", "", vide);
+    o0.value = "";
+    sel.appendChild(o0);
+    var vus = {};
+    D.invites.forEach(function (g) { if (g.par) { vus[g.par] = 1; } });
+    Object.keys(vus).sort().forEach(function (n) {
+      var o = creer("option", "", n);
+      o.value = n;
+      if (n === choisi) { o.selected = true; }
+      sel.appendChild(o);
+    });
+    if (choisi && !vus[choisi]) {
+      var x = creer("option", "", choisi);
+      x.value = choisi; x.selected = true;
+      sel.appendChild(x);
+    }
+  }
+
+  function rendreRail() {
+    var ul = $("rail");
+    if (!ul) { return; }
+    ul.textContent = "";
+    var m = new Date();
+    listeJalons().forEach(function (j) {
+      var li = creer("li");
+      if (j.retire) {
+        li.className = "retire";
+      } else if (j.fin && m > new Date(j.fin + "T23:59:59")) {
+        li.className = "fait";
+      } else if (j.debut && m >= new Date(j.debut + "T00:00:00")) {
+        li.className = "encours";
+      }
+
+      if (editJalon === j.id) {
+        li.className += " edition";
+        var duo = creer("div", "duo");
+        duo.appendChild(champDate("jd-" + j.id, j.debut, function (v) {
+          j.debut = v;
+          if (!j.quand) { j.quand = libelleDates(j.debut, j.fin); }
+          poserJalon(j, li); rendreRail();
+        }));
+        duo.appendChild(champDate("jf-" + j.id, j.fin, function (v) {
+          j.fin = v; poserJalon(j, li); rendreRail();
+        }));
+        li.appendChild(etiquette("Du / au"));
+        li.appendChild(duo);
+        li.appendChild(etiquette("Ce qui s'affiche comme date"));
+        li.appendChild(champLibre("jq-" + j.id, j.quand, libelleDates(j.debut, j.fin),
+          function (v) { j.quand = v; poserJalon(j, li); }));
+        li.appendChild(etiquette("Ce qui se passe"));
+        li.appendChild(champLibre("jt-" + j.id, j.quoi, "Intitulé du repère",
+          function (v) { j.quoi = v; poserJalon(j, li); }));
+        li.appendChild(etiquette("Précision"));
+        li.appendChild(champLibre("jn-" + j.id, j.note, "Pourquoi ce repère compte",
+          function (v) { j.note = v; poserJalon(j, li); }, true));
+        var g1 = creer("div", "gestes");
+        g1.appendChild(boutonMini("Terminé", "vert", function () {
+          editJalon = null; rendreRail();
+        }));
+        g1.appendChild(boutonMini("Retirer ce repère", "sup", function () {
+          j.retire = true; editJalon = null; poserJalon(j, li); rendreRail();
+        }));
+        li.appendChild(g1);
+      } else {
+        li.appendChild(creer("span", "quand", j.quand || libelleDates(j.debut, j.fin)));
+        li.appendChild(creer("span", "quoi", j.quoi || "Repère sans intitulé"));
+        if (j.note) { li.appendChild(creer("span", "note", j.note)); }
+        var g2 = creer("div", "gestes");
+        if (j.retire) {
+          g2.appendChild(boutonMini("Remettre", "rendre", function () {
+            j.retire = false; poserJalon(j, li); rendreRail();
+          }));
+        } else {
+          g2.appendChild(boutonMini("Modifier", "", function () {
+            editJalon = j.id; rendreRail();
+            var c = $("jt-" + j.id); if (c) { c.focus(); }
+          }));
+          g2.appendChild(boutonMini("Retirer", "sup", function () {
+            j.retire = true; poserJalon(j, li); rendreRail();
+          }));
+        }
+        li.appendChild(g2);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  function rendreOuverts() {
+    var ul = $("ouverts");
+    if (!ul) { return; }
+    ul.textContent = "";
+    var vivants = 0, tranches = 0;
+
+    listeOuverts().forEach(function (o) {
+      if (!o.retire) { vivants++; if (o.tranche) { tranches++; } }
+      var li = creer("li");
+      li.className = o.retire ? "retire" : (o.tranche ? "tranche" : "");
+
+      if (editOuvert === o.id) {
+        li.appendChild(etiquette("Le point"));
+        li.appendChild(champLibre("ot-" + o.id, o.titre, "Intitulé du point",
+          function (v) { o.titre = v; poserOuvert(o, li); }));
+        li.appendChild(etiquette("De quoi il s'agit"));
+        li.appendChild(champLibre("od-" + o.id, o.detail, "Ce qu'il faut savoir pour décider",
+          function (v) { o.detail = v; poserOuvert(o, li); }, true));
+        var g1 = creer("div", "gestes");
+        g1.appendChild(boutonMini("Terminé", "vert", function () {
+          editOuvert = null; rendreOuverts();
+        }));
+        g1.appendChild(boutonMini("Retirer ce point", "sup", function () {
+          o.retire = true; editOuvert = null; poserOuvert(o, li); rendreOuverts();
+        }));
+        li.appendChild(g1);
+        ul.appendChild(li);
+        return;
+      }
+
+      li.appendChild(creer("span", "pastille " + (o.tranche ? "tranche" : "ouvert"),
+        o.retire ? "retiré" : (o.tranche ? "tranché" : "à trancher")));
+      li.appendChild(creer("span", "titre", o.titre || "Point sans intitulé"));
+      if (o.detail) { li.appendChild(creer("span", "note", o.detail)); }
+
+      if (!o.retire) {
+        li.appendChild(etiquette(o.tranche ? "Ce qui a été décidé"
+                                           : "La décision, dès qu'elle est prise"));
+        li.appendChild(champLibre("dec-" + o.id, o.decision,
+          "Écris ici ce qui a été décidé, et par qui",
+          function (v) {
+            var bascule = v && !o.tranche;
+            o.decision = v;
+            if (bascule) { o.tranche = true; }
+            poserOuvert(o, li);
+            if (bascule) { rendreOuverts(); }
+          }));
+      }
+
+      var g = creer("div", "gestes");
+      if (o.retire) {
+        g.appendChild(boutonMini("Remettre", "rendre", function () {
+          o.retire = false; poserOuvert(o, li); rendreOuverts();
+        }));
+      } else {
+        var bas = creer("div", "bascule");
+        [["À trancher", false], ["Tranché", true]].forEach(function (x) {
+          var b = creer("button", "", x[0]);
+          b.type = "button";
+          b.disabled = !ecrireWk;
+          b.setAttribute("aria-pressed", (o.tranche === x[1]) ? "true" : "false");
+          b.addEventListener("click", function () {
+            o.tranche = x[1]; poserOuvert(o, li); rendreOuverts();
+          });
+          bas.appendChild(b);
+        });
+        g.appendChild(bas);
+
+        var sel = document.createElement("select");
+        sel.className = "champ";
+        sel.style.width = "auto";
+        sel.disabled = !ecrireWk;
+        sel.setAttribute("aria-label", "Qui s'en occupe");
+        remplirOrganisateurs(sel, o.par, "Qui s'en occupe…");
+        sel.addEventListener("change", function () {
+          o.par = sel.value; poserOuvert(o, li);
+        });
+        g.appendChild(sel);
+
+        g.appendChild(boutonMini("Modifier", "", function () {
+          editOuvert = o.id; rendreOuverts();
+          var c = $("ot-" + o.id); if (c) { c.focus(); }
+        }));
+        g.appendChild(boutonMini("Retirer", "sup", function () {
+          o.retire = true; poserOuvert(o, li); rendreOuverts();
+        }));
+      }
+      li.appendChild(g);
+      ul.appendChild(li);
+    });
+
+    $("compte-ouverts").textContent = vivants === 0 ? "aucun point"
+      : tranches + " tranché" + (tranches > 1 ? "s" : "") + " sur " + vivants;
+  }
+
+  function rendreWeekend() { gardeFocus(function () { rendreRail(); rendreOuverts(); }); }
+
+  /* ---------------- état fusionné : classeur + saisies en ligne ---------------- */
+
+  var saisies = {};
+  var TA = D.tarif_adulte || 8, TE = D.tarif_enfant || 3;
+
+  // La valeur telle que le classeur la donnait au moment de la photo. Chaque
+  // saisie l'emporte avec elle : c'est ce qui permettra, au reversement, de
+  // distinguer « le classeur n'a pas bougé » de « les deux côtés ont changé ».
+  var ORIGINE = {};
+  D.invites.forEach(function (g) { ORIGINE[g.ligne] = g; });
+
+  /** Le nombre de personnes suit les prénoms saisis, comme la formule du
+      classeur ; un nombre tapé à la main prend le dessus quand il est donné. */
+  function comptePrenoms(texte) {
+    if (!texte) { return 0; }
+    return texte.split(",").filter(function (x) { return x.trim() !== ""; }).length;
+  }
+
+  function fusion(g) {
+    var s = saisies[g.ligne] || {};
+    var prenoms = s.hasOwnProperty("prenoms") ? s.prenoms : g.prenoms;
+    var personnes = s.hasOwnProperty("personnes") && s.personnes !== null
+      ? s.personnes
+      : (s.hasOwnProperty("prenoms") ? comptePrenoms(prenoms) : g.personnes);
+    var moins15 = s.hasOwnProperty("moins15") ? s.moins15 : (g.moins15 || 0);
+    var enfants = Math.min(moins15, personnes);
+    return {
+      ligne: g.ligne, cle: "L" + g.ligne, col: "saisies", docId: String(g.ligne), nouvelle: false,
+      nom: s.hasOwnProperty("nom") ? s.nom : g.nom,
+      prenoms: prenoms,
+      par: g.par,
+      personnes: personnes,
+      moins15: moins15,
+      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      contribution: s.hasOwnProperty("contribution") ? s.contribution : g.contribution,
+      statut: s.statut || g.statut,
+      recu: s.hasOwnProperty("recu") ? s.recu : g.recu,
+      retiree: s.retiree === true,
+      envoyee: s.envoyee === true
+    };
+  }
+  var ajouts = {};
+
+  /** Une invitation créée en ligne : rien à réconcilier, c'est un ajout pur. */
+  function fusionAjout(id, a) {
+    var prenoms = a.prenoms || "";
+    var personnes = (typeof a.personnes === "number" && a.personnes !== null)
+      ? a.personnes : comptePrenoms(prenoms);
+    var moins15 = typeof a.moins15 === "number" ? a.moins15 : 0;
+    var enfants = Math.min(moins15, personnes);
+    return {
+      ligne: null, cle: id, col: "ajouts", docId: id, nouvelle: true,
+      nom: a.nom || "", prenoms: prenoms, par: a.par || null,
+      personnes: personnes, moins15: moins15,
+      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      contribution: a.contribution || null,
+      statut: a.statut || "En attente",
+      recu: typeof a.recu === "number" ? a.recu : 0,
+      retiree: a.retiree === true,
+      envoyee: a.envoyee === true
+    };
+  }
+
+  function liste() {
+    var base = D.invites.map(fusion);
+    var sup = Object.keys(ajouts).map(function (id) { return fusionAjout(id, ajouts[id]); });
+    return base.concat(sup);
+  }
+  // « vivants » = ce qui compte vraiment : ni annulé, ni retiré de la liste
+  function vivants() {
+    return liste().filter(function (g) { return g.statut !== "Annulé" && !g.retiree; });
+  }
+  function retirees() { return liste().filter(function (g) { return g.retiree; }); }
+
+  /* ---------------- vue « où on en est » ---------------- */
+
+  function pointArc(cx, cy, r, t) {
+    var a = Math.PI * (1 - t);
+    return [cx + r * Math.cos(a), cy - r * Math.sin(a)];
+  }
+  function cheminArc(cx, cy, r, t0, t1) {
+    var d = pointArc(cx, cy, r, t0), f = pointArc(cx, cy, r, t1);
+    return "M " + d[0].toFixed(2) + " " + d[1].toFixed(2) + " A " + r + " " + r + " 0 " +
+           ((t1 - t0) > 0.5 ? 1 : 0) + " 1 " + f[0].toFixed(2) + " " + f[1].toFixed(2);
+  }
+
+  function empiler(idB, idL, series) {
+    var total = series.reduce(function (s, x) { return s + x.n; }, 0);
+    var barre = $(idB), lst = $(idL);
+    barre.textContent = ""; lst.textContent = "";
+    series.forEach(function (x) {
+      if (!x.n) { return; }
+      var seg = creer("i");
+      seg.style.flex = x.n + " 0 0";
+      seg.style.background = x.couleur;
+      seg.title = x.nom + " : " + x.n;
+      barre.appendChild(seg);
+      var li = creer("li"), puce = creer("i");
+      puce.style.background = x.couleur;
+      li.appendChild(puce);
+      li.appendChild(creer("span", null, x.nom));
+      li.appendChild(creer("span", "val", x.n + " · " + pourcent.format(total ? x.n / total : 0)));
+      lst.appendChild(li);
+    });
+    if (!total) { lst.appendChild(creer("li", "manquant", "Rien de saisi.")); }
+  }
+
+  function rendreApercu() {
+    var v = vivants();
+    var personnes = v.reduce(function (s, g) { return s + g.personnes; }, 0);
+    var objectif = D.objectif || 200, jauge = D.jauge || 0;
+
+    var boite = $("alerte-jauge");
+    boite.textContent = ""; boite.className = "";
+    var trop = personnes - jauge;
+    if (jauge && trop > 0) {
+      boite.className = "alerte-jauge";
+      boite.appendChild(creer("span", "nb", "−" + trop));
+      var dit = creer("div", "dit");
+      dit.appendChild(creer("h3", null, "La salle est dépassée"));
+      var p = creer("p");
+      p.innerHTML = "La salle accueille <b>" + jauge + "</b> personnes au maximum, et <b>" +
+        personnes + "</b> sont sur la liste. C'est une limite de sécurité : elle passe avant " +
+        "le remplissage et avant la recette. Chacun priorise ses 38 places.";
+      dit.appendChild(p);
+      boite.appendChild(dit);
+    }
+
+    var arc = $("arc");
+    arc.textContent = "";
+    var CX = 125, CY = 122, RA = 98;
+    var part = Math.max(0, Math.min(1, objectif ? personnes / objectif : 0));
+    arc.appendChild(svg("path", { d: cheminArc(CX, CY, RA, 0, 1), fill: "none",
+      stroke: "rgba(99,127,166,.2)", "stroke-width": 18, "stroke-linecap": "round" }));
+    if (part > 0) {
+      arc.appendChild(svg("path", { d: cheminArc(CX, CY, RA, 0, part), fill: "none",
+        stroke: personnes > jauge ? "#E68A8A" : "#A8C4E2", "stroke-width": 18, "stroke-linecap": "round" }));
+    }
+    if (jauge && objectif) {
+      var t = Math.max(0, Math.min(1, jauge / objectif));
+      var a1 = pointArc(CX, CY, RA + 14, t), a2 = pointArc(CX, CY, RA - 14, t);
+      arc.appendChild(svg("line", { x1: a1[0].toFixed(1), y1: a1[1].toFixed(1),
+        x2: a2[0].toFixed(1), y2: a2[1].toFixed(1), stroke: "#E68A8A", "stroke-width": 3 }));
+      var lab = svg("text", { "class": "arc-bout", x: a1[0].toFixed(1), y: (a1[1] - 6).toFixed(1),
+        "text-anchor": "middle", fill: "#E68A8A" });
+      lab.textContent = "salle " + jauge;
+      arc.appendChild(lab);
+    }
+    var nb = svg("text", { "class": "arc-nb", x: CX, y: CY - 12 });
+    nb.textContent = String(personnes);
+    arc.appendChild(nb);
+    var sur = svg("text", { "class": "arc-sur", x: CX, y: CY + 10 });
+    sur.textContent = "SUR " + objectif + " VISÉES";
+    arc.appendChild(sur);
+
+    var manque = objectif - personnes;
+    $("arc-phrase").innerHTML = manque > 0
+      ? pourcent.format(part) + " de l'objectif. Il reste <b>" + accorde(manque, "personne", "personnes") +
+        "</b> à inscrire, sur <b>" + accorde(v.length, "invitation", "invitations") + "</b>."
+      : "Objectif dépassé de <b>" + accorde(-manque, "personne", "personnes") + "</b>, sur <b>" +
+        accorde(v.length, "invitation", "invitations") + "</b>.";
+
+    var QUOTA = 38, detail = {};
+    v.forEach(function (g) {
+      var qui = g.par || "Sans invitant";
+      var d = detail[qui] || (detail[qui] = { inv: 0, per: 0, "Salé": 0, "Sucré": 0, "Spécialité": 0, sans: 0 });
+      d.inv += 1;
+      d.per += g.personnes;
+      if (g.contribution && d.hasOwnProperty(g.contribution)) { d[g.contribution] += 1; }
+      else { d.sans += 1; }
+    });
+    var corps = $("quotas");
+    corps.textContent = "";
+    Object.keys(detail).sort(function (a, b) { return detail[b].per - detail[a].per; })
+      .forEach(function (qui) {
+        var d = detail[qui], ecart = d.per - QUOTA, tr = creer("tr");
+        tr.appendChild(creer("td", null, qui));
+        tr.appendChild(creer("td", "nombre", String(d.inv)));
+        tr.appendChild(creer("td", "nombre", String(d.per)));
+        var e = creer("td", "nombre", (ecart > 0 ? "+" : "") + ecart);
+        e.style.color = ecart > 0 ? "var(--du)" : "var(--regle)";
+        e.style.fontWeight = "600";
+        tr.appendChild(e);
+        tr.appendChild(creer("td", null, d.inv
+          ? pourcent.format(d["Salé"] / d.inv) + " · " + pourcent.format(d["Spécialité"] / d.inv) +
+            " · " + pourcent.format(d["Sucré"] / d.inv)
+          : "—"));
+        tr.appendChild(creer("td", "nombre" + (d.sans ? " reste-du" : ""), String(d.sans)));
+        corps.appendChild(tr);
+      });
+    var sansContrib = v.filter(function (g) { return !g.contribution; }).length;
+    var tot = creer("tr");
+    ["Total", String(v.length), String(personnes),
+      (personnes - jauge > 0 ? "+" : "") + (personnes - jauge) + " / salle", "", String(sansContrib)]
+      .forEach(function (txt, i) {
+        var td = creer("td", i >= 1 ? "nombre" : null, txt);
+        td.style.fontWeight = "600";
+        if (i === 3) { td.style.color = "var(--alerte)"; }
+        tot.appendChild(td);
+      });
+    corps.appendChild(tot);
+
+    var enfants = v.reduce(function (s, g) { return s + Math.min(g.moins15, g.personnes); }, 0);
+    empiler("composition", "composition-legende", [
+      { nom: "Adultes", n: personnes - enfants, couleur: DUO[0] },
+      { nom: "Moins de 15 ans", n: enfants, couleur: DUO[1] }
+    ]);
+    var parStatut = {};
+    liste().forEach(function (g) { parStatut[g.statut] = (parStatut[g.statut] || 0) + 1; });
+    empiler("statuts", "statuts-legende", REPONSES.map(function (r) {
+      return { nom: r.mot, n: parStatut[r.code] || 0, couleur: TEINTE_STATUT[r.code] };
+    }));
+  }
+
+  /* ---------------- vue « buffet » ---------------- */
+
+  function carte(parent, val, teinte, quoi, detail) {
+    var c = creer("div", "carte");
+    c.appendChild(creer("span", "valeur" + (teinte ? " " + teinte : ""), val));
+    c.appendChild(creer("span", "quoi", quoi));
+    c.appendChild(creer("span", "detail", detail));
+    parent.appendChild(c);
+  }
+
+  function rendreBuffet() {
+    var v = vivants();
+    var compte = { "Salé": 0, "Sucré": 0, "Spécialité": 0 }, sans = 0;
+    v.forEach(function (g) {
+      if (g.contribution && compte.hasOwnProperty(g.contribution)) { compte[g.contribution] += 1; }
+      else { sans += 1; }
+    });
+    var parts = CONTRIBUTIONS.map(function (n) { return { nom: n, n: compte[n], couleur: TEINTES[n] }; });
+    parts.push({ nom: "Non attribué", n: sans, couleur: VIDE, hachure: true });
+    var total = parts.reduce(function (s, p) { return s + p.n; }, 0);
+
+    var dessin = $("camembert");
+    dessin.textContent = "";
+    var R = 84, EP = 38, C = 2 * Math.PI * R, debut = 0;
+    parts.forEach(function (p) {
+      if (!p.n) { return; }
+      var lon = (p.n / total) * C, esp = total > p.n ? 2 : 0;
+      var a = svg("circle", { cx: 115, cy: 115, r: R, fill: "none",
+        stroke: p.hachure ? "url(#hachure)" : p.couleur,
+        "stroke-width": EP, "stroke-dasharray": Math.max(0, lon - esp) + " " + (C - lon + esp),
+        "stroke-dashoffset": -debut, transform: "rotate(-90 115 115)" });
+      a.appendChild(svg("title", {})).textContent =
+        p.nom + " : " + accorde(p.n, "invitation", "invitations") + " (" + pourcent.format(p.n / total) + ")";
+      dessin.appendChild(a);
+      debut += lon;
+    });
+    var creux = svg("text", { "class": "creux", x: 115, y: 108 });
+    var gros = svg("tspan", { "class": "gros", x: 115, y: 112 });
+    gros.textContent = String(total);
+    var petit = svg("tspan", { "class": "petit", x: 115, y: 133 });
+    petit.textContent = "INVITATIONS";
+    creux.appendChild(gros);
+    creux.appendChild(petit);
+    dessin.appendChild(creux);
+
+    var lg = $("camembert-legende");
+    lg.textContent = "";
+    parts.forEach(function (p) {
+      var li = creer("li"), puce = creer("i");
+      peindre(puce, p.couleur, p.hachure);
+      li.appendChild(puce);
+      li.appendChild(creer("span", null, p.nom));
+      li.appendChild(creer("span", "val", p.n + " · " + pourcent.format(total ? p.n / total : 0)));
+      lg.appendChild(li);
+    });
+
+    // Toujours rapporter au TOTAL des invitations, jamais aux seules attribuées :
+    // sinon les parts bougent à mesure qu'on attribue, et le camembert et la
+    // cible affichent deux chiffres différents pour la même chose.
+    var base = total;
+    var cadre = $("contributions");
+    cadre.textContent = "";
+    CONTRIBUTIONS.forEach(function (nom) {
+      var n = compte[nom], cible = D.parts[nom] || 0, pr = base ? n / base : 0;
+      var ligne = creer("div", "contrib-ligne");
+
+      var haut = creer("div", "haut");
+      haut.appendChild(creer("span", "nom", nom));
+      haut.appendChild(creer("span", "chiffre",
+        n + " sur " + base + " · " + pourcent.format(pr)));
+      ligne.appendChild(haut);
+
+      var b = creer("div", "barre"), f = creer("i");
+      f.style.background = TEINTES[nom];
+      f.style.width = (pr * 100).toFixed(1) + "%";
+      f.title = nom + " : " + pourcent.format(pr) + " des " + base + " invitations";
+      b.appendChild(f);
+      var u = creer("u");
+      u.style.left = (cible * 100).toFixed(1) + "%";
+      u.title = "cible : " + pourcent.format(cible);
+      b.appendChild(u);
+      ligne.appendChild(b);
+
+      var pied = creer("div", "pied");
+      pied.appendChild(creer("span", null, "cible " + pourcent.format(cible)));
+      var diff = pr - cible;
+      var e = creer("span", "ecart",
+        (Math.abs(diff) < 0.005 ? "dans la cible"
+          : (diff > 0 ? "+" : "−") + pourcent.format(Math.abs(diff)) + " d'écart"));
+      e.style.color = Math.abs(diff) <= 0.05 ? "var(--regle)" : "var(--du)";
+      pied.appendChild(e);
+      ligne.appendChild(pied);
+
+      cadre.appendChild(ligne);
+    });
+
+    var cb = $("cartes-buffet");
+    cb.textContent = "";
+    carte(cb, String(sans), sans ? "du" : "regle", "Sans contribution",
+          "à choisir avant de remettre l'invitation");
+    carte(cb, String(D.sans_boisson), D.sans_boisson ? "du" : "regle", "Sans réponse boisson",
+          "une boisson par invitation, sans exception");
+    carte(cb, String(D.boissons_promises), null, "Boissons promises",
+          "sur " + accorde(v.length, "attendue", "attendues"));
+    $("badge-buffet").textContent = sans ? String(sans) : "";
+
+    /* ---- ce qu'il reste à attribuer, pour tenir la cible ----
+       On raisonne sur le TOTAL des invitations, pas sur les seules déjà
+       attribuées : c'est la répartition finale qui compte, et les 27 encore
+       libres sont précisément la marge de manœuvre. */
+    var totalInv = v.length;
+    var corpsM = $("manque-buffet");
+    corpsM.textContent = "";
+    var aDonner = {};
+    CONTRIBUTIONS.forEach(function (nom) {
+      var cible = Math.round(totalInv * (D.parts[nom] || 0));
+      var actuel = compte[nom];
+      var ecart = actuel - cible;
+      aDonner[nom] = Math.max(0, cible - actuel);
+      var tr = creer("tr");
+      tr.appendChild(creer("td", null, nom));
+      tr.appendChild(creer("td", "nombre", String(actuel)));
+      tr.appendChild(creer("td", "nombre", pourcent.format(totalInv ? actuel / totalInv : 0)));
+      tr.appendChild(creer("td", "nombre", String(cible)));
+      var e = creer("td", "nombre", (ecart > 0 ? "+" : "") + ecart);
+      e.style.color = Math.abs(ecart) <= Math.max(2, totalInv * 0.03) ? "var(--regle)" : "var(--du)";
+      e.style.fontWeight = "600";
+      tr.appendChild(e);
+      tr.appendChild(creer("td", "nombre", aDonner[nom] ? String(aDonner[nom]) : "—"));
+      corpsM.appendChild(tr);
+    });
+    var trS = creer("tr");
+    ["Non attribuées", String(sans), pourcent.format(totalInv ? sans / totalInv : 0), "0",
+     (sans ? "+" + sans : "0"), ""].forEach(function (txt, i) {
+      var td = creer("td", i >= 1 ? "nombre" : null, txt);
+      td.style.fontWeight = "600";
+      if (i === 4 && sans) { td.style.color = "var(--du)"; }
+      trS.appendChild(td);
+    });
+    corpsM.appendChild(trS);
+
+    var conseil = CONTRIBUTIONS.filter(function (n) { return aDonner[n] > 0; })
+      .map(function (n) { return aDonner[n] + " " + n.toLowerCase(); });
+    $("reste-sous").textContent = sans
+      ? (conseil.length
+          ? "Il reste " + accorde(sans, "invitation à attribuer", "invitations à attribuer")
+            + ". Pour tenir la cible, donne en priorité : " + conseil.join(", ") + "."
+          : "Il reste " + accorde(sans, "invitation à attribuer", "invitations à attribuer")
+            + ", et la cible est déjà tenue sur les trois contributions.")
+      : "Tout est attribué.";
+
+    /* ---- le mélange de chacun ---- */
+    var ORDRE = ["Salé", "Spécialité", "Sucré"];   // l'ordre dont Diane parle
+    var TEINTE = TEINTES;
+    var parQui = {};
+    v.forEach(function (g) {
+      var qui = g.par || "Sans invitant";
+      var d = parQui[qui] || (parQui[qui] = { "Salé": 0, "Sucré": 0, "Spécialité": 0, sans: 0, tot: 0 });
+      d.tot += 1;
+      if (g.contribution && d.hasOwnProperty(g.contribution)) { d[g.contribution] += 1; }
+      else { d.sans += 1; }
+    });
+    var NUANCE = { "Salé": TEINTE["Salé"], "Spécialité": TEINTE["Spécialité"],
+                   "Sucré": TEINTE["Sucré"], "sans": VIDE };
+    var MOT = { "Salé": "Salé", "Spécialité": "Spécialité", "Sucré": "Sucré", "sans": "Non attribué" };
+
+    var lgM = $("melange-legende");
+    lgM.textContent = "";
+    ORDRE.concat(["sans"]).forEach(function (nom) {
+      var li = creer("li"), puce = creer("i");
+      peindre(puce, NUANCE[nom], nom === "sans");
+      li.appendChild(puce);
+      li.appendChild(creer("span", null, MOT[nom]));
+      lgM.appendChild(li);
+    });
+
+    var boiteM = $("melange");
+    boiteM.textContent = "";
+    var noms = Object.keys(parQui).sort(function (a, b) { return parQui[b].tot - parQui[a].tot; });
+    if (!noms.length) {
+      boiteM.appendChild(creer("p", "manquant", "Aucune invitation à répartir."));
+    }
+    noms.forEach(function (qui) {
+      var d = parQui[qui], tot = d.tot;
+      var bloc = creer("div", "un");
+
+      var dess = svg("svg", { width: 132, height: 132, viewBox: "0 0 132 132",
+        role: "img", "aria-label": "Répartition des contributions de " + qui });
+      var r = 48, ep = 22, circ = 2 * Math.PI * r, pos = 0;
+      ORDRE.concat(["sans"]).forEach(function (nom) {
+        var n = nom === "sans" ? d.sans : d[nom];
+        if (!n) { return; }
+        var lon = (n / tot) * circ, esp = tot > n ? 2 : 0;
+        var a = svg("circle", { cx: 66, cy: 66, r: r, fill: "none",
+          stroke: nom === "sans" ? "url(#hachure)" : NUANCE[nom],
+          "stroke-width": ep,
+          "stroke-dasharray": Math.max(0, lon - esp) + " " + (circ - lon + esp),
+          "stroke-dashoffset": -pos, transform: "rotate(-90 66 66)" });
+        a.appendChild(svg("title", {})).textContent =
+          MOT[nom] + " : " + n + " (" + pourcent.format(n / tot) + ")";
+        dess.appendChild(a);
+        pos += lon;
+      });
+      var centre = svg("text", { "class": "creux", x: 66, y: 75 });
+      centre.textContent = String(tot);
+      dess.appendChild(centre);
+      bloc.appendChild(dess);
+
+      bloc.appendChild(creer("span", "qui", qui));
+      bloc.appendChild(creer("span", "tot", accorde(tot, "invitation", "invitations")));
+
+      // les parts en toutes lettres : l'identité ne repose jamais sur la seule couleur
+      var mix = creer("span", "mix");
+      mix.innerHTML = ORDRE.map(function (nom) {
+        return MOT[nom].slice(0, 4).toLowerCase() + " <b>" + pourcent.format(d[nom] / tot) + "</b>";
+      }).join("<br>") + (d.sans ? "<br>non attr. <b>" + pourcent.format(d.sans / tot) + "</b>" : "");
+      bloc.appendChild(mix);
+
+      boiteM.appendChild(bloc);
+    });
+  }
+
+  /* ---------------- vue « argent » ---------------- */
+
+  function rendreArgent() {
+    var v = vivants();
+    var du = v.reduce(function (s, g) { return s + g.du; }, 0);
+    var recu = v.reduce(function (s, g) { return s + (g.recu || 0); }, 0);
+    var cartes = $("cartes-argent");
+    cartes.textContent = "";
+    var enfants = v.reduce(function (s, g) { return s + Math.min(g.moins15, g.personnes); }, 0);
+    var personnes = v.reduce(function (s, g) { return s + g.personnes; }, 0);
+    carte(cartes, euros.format(du), null, "Attendu",
+          accorde(personnes - enfants, "adulte", "adultes") + ", " + enfants + " de moins de 15 ans");
+    carte(cartes, euros.format(recu), "regle", "Encaissé",
+          recu ? "sur " + euros.format(du) : "aucun règlement noté");
+    carte(cartes, euros.format(du - recu), (du - recu) > 0 ? "du" : "regle", "Reste dû",
+          accorde(D.sans_date, "invitation sans date", "invitations sans date"));
+    carte(cartes, euros.format(D.depenses), null, "Dépenses",
+          D.depenses ? "engagées à ce jour" : "rien d'engagé");
+
+    var pr = du > 0 ? recu / du : 0;
+    $("part-encaissee").textContent =
+      pourcent.format(pr) + " — " + euros.format(recu) + " sur " + euros.format(du);
+    $("jauge-paiement").style.width = (pr * 100).toFixed(1) + "%";
+
+    var paliers = [1, 2, 3, 4, 5], compte = {}, sansPrenom = 0;
+    paliers.forEach(function (p) { compte[p] = 0; });
+    v.forEach(function (g) {
+      if (g.personnes < 1) { sansPrenom += 1; return; }
+      compte[Math.min(g.personnes, 5)] += 1;
+    });
+    var maxi = paliers.reduce(function (m, p) { return Math.max(m, compte[p]); }, 0);
+    var boite = $("foyers");
+    boite.textContent = "";
+    paliers.forEach(function (p) {
+      var col = creer("div", "col");
+      col.appendChild(creer("span", "n", String(compte[p])));
+      var b = creer("i");
+      b.style.height = (maxi ? (compte[p] / maxi) * 100 : 0).toFixed(1) + "%";
+      col.appendChild(b);
+      col.appendChild(creer("span", "etiq", p === 5 ? "5 +" : String(p)));
+      boite.appendChild(col);
+    });
+    $("sans-prenom").textContent = sansPrenom
+      ? accorde(sansPrenom, "invitation sans aucun prénom saisi", "invitations sans aucun prénom saisi") +
+        " — elle ne compte personne et ne doit rien."
+      : "";
+  }
+
+  /* ---------------- vue « invitations » ---------------- */
+
+  var ecrire = null;
+
+  function rendreInvites() {
+    var q = ($("recherche").value || "").trim().toLowerCase();
+    var fpar = $("filtre-par").value;
+    var fcon = $("filtre-contrib").value;
+    var fetat = $("filtre-etat").value;
+    var ordre = $("tri").value, ordre2 = $("tri2").value;
+    var tout = liste();
+
+    var vus = tout.filter(function (g) {
+      // les retirées ne s'affichent que si on les demande explicitement
+      if (fetat === "retirees") { if (!g.retiree) { return false; } }
+      else if (g.retiree) { return false; }
+
+      if (fpar && (g.par || "") !== fpar) { return false; }
+      if (fcon === "sans" && g.contribution) { return false; }
+      if (fcon && fcon !== "sans" && g.contribution !== fcon) { return false; }
+      if (fetat === "nonenvoyee" && g.envoyee) { return false; }
+      if (fetat === "envoyee" && !g.envoyee) { return false; }
+      if (fetat === "attente" && g.statut !== "En attente") { return false; }
+      if (fetat === "confirme" && g.statut !== "Confirmé") { return false; }
+      if (fetat === "refuse" && g.statut !== "Annulé") { return false; }
+      if (fetat === "du" && (g.du - (g.recu || 0)) <= 0) { return false; }
+      if (q && ((g.nom || "") + " " + (g.prenoms || "")).toLowerCase().indexOf(q) < 0) { return false; }
+      return true;
+    });
+
+    vus.sort(function (a, b) {
+      var c = comparer(a, b, ordre) * sensTri;
+      if (c !== 0) { return c; }
+      if (ordre2 && ordre2 !== ordre) {
+        c = comparer(a, b, ordre2);
+        if (c !== 0) { return c; }
+      }
+      // à égalité stricte, le nom donne un ordre stable d'un rendu à l'autre
+      return (a.nom || "").localeCompare(b.nom || "", "fr");
+    });
+
+    var nbRetirees = retirees().length;
+    var perRetirees = retirees().reduce(function (s, g) { return s + g.personnes; }, 0);
+    $("retrait-compte").innerHTML = nbRetirees
+      ? "<b>" + nbRetirees + "</b> " + (nbRetirees > 1 ? "invitations retirées" : "invitation retirée")
+        + " de la liste, soit <b>" + perRetirees + "</b> "
+        + (perRetirees > 1 ? "personnes en moins" : "personne en moins")
+        + ". Rien n'est perdu : choisis « Retirées » dans le filtre d'état pour les revoir et les rendre."
+      : "";
+
+    var corps = $("corps-invites");
+    corps.textContent = "";
+    if (!vus.length) {
+      var trv = creer("tr"), tdv = creer("td", "manquant", "Aucune invitation ne correspond.");
+      tdv.colSpan = 12;
+      trv.appendChild(tdv);
+      corps.appendChild(trv);
+    }
+
+    vus.forEach(function (g) {
+      var tr = creer("tr");
+      if (g.retiree) { tr.className = "retiree"; }
+      else if (g.statut === "Annulé") { tr.className = "annulee"; }
+      if (g.nouvelle) { tr.className += " nouvelle"; }
+
+      var inerte = !ecrire || g.retiree;
+
+      tr.appendChild(champTexte("Nom de l'invitation ligne " + g.ligne, g.nom, "nom-large", inerte,
+        function (val) { poser(g, "nom", val, tr); }));
+
+      tr.appendChild(champTexte("Prénoms, séparés par des virgules", g.prenoms, "prenoms-large", inerte,
+        function (val) { poser(g, "prenoms", val, tr, { personnes: null }); }));
+
+      tr.appendChild(creer("td", null, g.par || "—"));
+
+      tr.appendChild(champNombre("Nombre de personnes", g.personnes, inerte,
+        function (val) { poser(g, "personnes", val, tr); }));
+
+      tr.appendChild(champNombre("Dont moins de 15 ans", g.moins15, inerte,
+        function (val) { poser(g, "moins15", val, tr); }));
+
+      // contribution
+      var tdc = creer("td");
+      var sc = document.createElement("select");
+      sc.setAttribute("aria-label", "Contribution de " + g.nom);
+      [""].concat(CONTRIBUTIONS).forEach(function (val) {
+        var o = document.createElement("option");
+        o.value = val;
+        o.textContent = val || "à attribuer";
+        if ((g.contribution || "") === val) { o.selected = true; }
+        sc.appendChild(o);
+      });
+      if (!g.contribution) { sc.className = "vide"; }
+      sc.disabled = !ecrire || g.retiree;
+      sc.addEventListener("change", function () { poser(g, "contribution", sc.value, tr); });
+      tdc.appendChild(sc);
+      tr.appendChild(tdc);
+
+      // invitation envoyée
+      tr.appendChild(coche("Invitation envoyée à " + g.nom, g.envoyee, !ecrire || g.retiree,
+        function (etat) { poser(g, "envoyee", etat, tr); }));
+
+      // réponse : les trois états s'excluent, donc une liste et non trois cases
+      var tds = creer("td");
+      var ss = document.createElement("select");
+      ss.setAttribute("aria-label", "Réponse de " + g.nom);
+      REPONSES.forEach(function (r) {
+        var o = document.createElement("option");
+        o.value = r.code;
+        o.textContent = r.mot;
+        if (g.statut === r.code) { o.selected = true; }
+        ss.appendChild(o);
+      });
+      ss.disabled = !ecrire || g.retiree;
+      ss.addEventListener("change", function () { poser(g, "statut", ss.value, tr); });
+      tds.appendChild(ss);
+      tr.appendChild(tds);
+
+      // règlement reçu en entier
+      var solde = (g.recu || 0) >= g.du && g.du > 0;
+      tr.appendChild(coche("Règlement reçu de " + g.nom, solde, !ecrire || g.retiree,
+        function (etat) { poser(g, "recu", etat ? g.du : 0, tr); }));
+
+      // montant exact, pour les règlements partiels
+      var tdr = creer("td", "nombre");
+      var ir = document.createElement("input");
+      ir.type = "number";
+      ir.min = "0";
+      ir.step = "1";
+      ir.value = g.recu ? String(g.recu) : "";
+      ir.placeholder = "0";
+      ir.setAttribute("aria-label", "Montant reçu de " + g.nom);
+      ir.disabled = !ecrire || g.retiree;
+      var minuteur = null;
+      ir.addEventListener("input", function () {
+        clearTimeout(minuteur);
+        minuteur = setTimeout(function () {
+          poser(g, "recu", ir.value === "" ? 0 : Number(ir.value), tr);
+        }, 700);
+      });
+      tdr.appendChild(ir);
+      tr.appendChild(tdr);
+
+      var reste = g.du - (g.recu || 0);
+      tr.appendChild(creer("td", "nombre" + (reste > 0 ? " reste-du" : ""), euros.format(reste)));
+
+      // retirer ou rendre
+      var tdg = creer("td");
+      var bouton = creer("button", "geste" + (g.retiree ? " rendre" : ""), g.retiree ? "Rendre" : "Retirer");
+      bouton.type = "button";
+      bouton.disabled = !ecrire;
+      bouton.title = g.retiree
+        ? "Remettre cette invitation dans la liste"
+        : "Retirer cette invitation de la liste — réversible";
+      bouton.addEventListener("click", function () { poser(g, "retiree", !g.retiree, tr); });
+      tdg.appendChild(bouton);
+      tr.appendChild(tdg);
+
+      corps.appendChild(tr);
+    });
+
+    $("compte-lignes").textContent = vus.length === tout.length
+      ? accorde(tout.length, "invitation", "invitations")
+      : vus.length + " sur " + tout.length;
+    var sans = vivants().filter(function (g) { return !g.contribution; }).length;
+    $("badge-invit").textContent = sans ? String(sans) : "";
+  }
+
+  // ordre logique des réponses, qui n'est pas l'ordre alphabétique
+  var RANG_REPONSE = { "En attente": 0, "Confirmé": 1, "Annulé": 2 };
+
+  /** Compare deux invitations sur un critère. Les cases vides finissent
+      toujours en bas, quel que soit le sens : ce sont elles qu'on cherche. */
+  function comparer(a, b, cle) {
+    if (cle === "personnes") { return b.personnes - a.personnes; }
+    if (cle === "reste") {
+      return (b.du - (b.recu || 0)) - (a.du - (a.recu || 0));
+    }
+    if (cle === "statut") {
+      return (RANG_REPONSE[a.statut] === undefined ? 9 : RANG_REPONSE[a.statut]) -
+             (RANG_REPONSE[b.statut] === undefined ? 9 : RANG_REPONSE[b.statut]);
+    }
+    if (cle === "envoyee") { return (b.envoyee ? 1 : 0) - (a.envoyee ? 1 : 0); }
+    var x = (a[cle] || ""), y = (b[cle] || "");
+    if (!x && y) { return 1; }
+    if (x && !y) { return -1; }
+    return String(x).localeCompare(String(y), "fr", { sensitivity: "base" });
+  }
+
+  var sensTri = 1;
+
+  function poser(g, champ, valeur, tr, aussi) {
+    var bac = g.col === "ajouts" ? ajouts : saisies;
+    var cle = g.col === "ajouts" ? g.docId : g.ligne;
+    var s = bac[cle] || (bac[cle] = {});
+    if (s[champ] === valeur && !aussi) { return; }      // rien n'a bougé : pas d'écriture
+    s[champ] = valeur;
+    if (aussi) { for (var k in aussi) { s[k] = aussi[k]; } }
+    rendreTout();
+    if (ecrire) { ecrire(g, s, tr); }
+  }
+
+  ["recherche", "filtre-par", "filtre-contrib", "filtre-etat", "tri", "tri2"].forEach(function (id) {
+    $(id).addEventListener("input", rendreInvites);
+  });
+  $("raz").addEventListener("click", function () {
+    $("recherche").value = "";
+    $("filtre-par").value = "";
+    $("filtre-contrib").value = "";
+    $("filtre-etat").value = "";
+    $("tri").value = "nom";
+    $("tri2").value = "";
+    sensTri = 1;
+    $("sens").textContent = "↑";
+    rendreInvites();
+  });
+
+  $("sens").addEventListener("click", function () {
+    sensTri = -sensTri;
+    this.textContent = sensTri > 0 ? "↑" : "↓";
+    this.setAttribute("title", sensTri > 0 ? "Ordre croissant" : "Ordre décroissant");
+    rendreInvites();
+  });
+
+  /* ---------------- rendu global ---------------- */
+
+  function rendreTout() {
+    rendreApercu();
+    rendreBuffet();
+    rendreArgent();
+    rendreInvites();
+    rendreWeekend();
+  }
+
+  $("arrete").textContent = D.arrete;
+  (function () {
+    var vus = {};
+    D.invites.forEach(function (g) { if (g.par) { vus[g.par] = 1; } });
+    var noms = Object.keys(vus).sort();
+    var sel = $("filtre-par");
+    noms.forEach(function (n) {
+      var o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+    remplirOrganisateurs($("on-par"), "", "Qui s'en occupe…");
+    var sa = $("a-par");
+    var vide = document.createElement("option");
+    vide.value = ""; vide.textContent = "Invité par…";
+    sa.appendChild(vide);
+    noms.forEach(function (n) {
+      var o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      sa.appendChild(o);
+    });
+  })();
+  rendreTout();
+
+  /* ---------------- la feuille partagée ---------------- */
+
+  function etat(classe, texte) {
+    var e = $("etat-saisie");
+    e.className = "etat-saisie" + (classe ? " " + classe : "");
+    e.textContent = texte;
+  }
+
+  (function () {
+    if (typeof claude === "undefined" || !claude || typeof claude.use !== "function") {
+      etat("mort", "Feuille partagée indisponible : la page reste consultable, "
+                 + "mais rien ne peut être enregistré ici.");
+      return;
+    }
+    claude.use("db").then(function (db) {
+      if (!db) {
+        etat("mort", "Feuille partagée indisponible : la page reste consultable, "
+                   + "mais rien ne peut être enregistré ici.");
+        return;
+      }
+      var colSaisies = db.collection("saisies");
+      var colAjouts = db.collection("ajouts");
+      var colWk = { jalons: db.collection("jalons"), ouverts: db.collection("ouverts") };
+      var enCours = {};
+
+      ecrire = function (g, corps, tr) {
+        var cle = g.col + "/" + g.docId;
+        if (enCours[cle]) { enCours[cle] = corps; return; }
+        enCours[cle] = corps;
+        var envoyer = function () {
+          var aEcrire = enCours[cle];
+          var o = g.col === "saisies" ? (ORIGINE[g.ligne] || {}) : {};
+          var doc = (g.col === "ajouts" ? colAjouts : colSaisies).doc(g.docId);
+          doc.set({
+            // repères de reversement : contre quoi cette saisie a été faite.
+            // Une invitation créée en ligne n'a pas de référence : c'est un ajout.
+            nouvelle: g.col === "ajouts",
+            arrete: D.arrete,
+            ancre: o.nom === undefined ? null : o.nom,
+            par: aEcrire.par === undefined ? (g.par || null) : aEcrire.par,
+            base: {
+              nom: o.nom === undefined ? null : o.nom,
+              prenoms: o.prenoms === undefined ? null : o.prenoms,
+              personnes: o.personnes === undefined ? null : o.personnes,
+              moins15: o.moins15 === undefined ? null : o.moins15,
+              contribution: o.contribution === undefined ? null : o.contribution,
+              statut: o.statut === undefined ? null : o.statut,
+              recu: o.recu === undefined ? null : o.recu
+            },
+            contribution: aEcrire.contribution === undefined ? null : aEcrire.contribution,
+            statut: aEcrire.statut === undefined ? null : aEcrire.statut,
+            recu: aEcrire.recu === undefined ? null : aEcrire.recu,
+            nom: aEcrire.nom === undefined ? null : aEcrire.nom,
+            prenoms: aEcrire.prenoms === undefined ? null : aEcrire.prenoms,
+            personnes: aEcrire.personnes === undefined ? null : aEcrire.personnes,
+            moins15: aEcrire.moins15 === undefined ? null : aEcrire.moins15,
+            envoyee: aEcrire.envoyee === true,
+            retiree: aEcrire.retiree === true,
+            quand: new Date().toISOString()
+          }).then(function () {
+            delete enCours[cle];
+            if (tr) {
+              tr.classList.remove("enregistre");
+              void tr.offsetWidth;
+              tr.classList.add("enregistre");
+            }
+            etat("vivant", "Enregistré — les autres organisateurs le voient aussitôt.");
+          }).catch(function (err) {
+            delete enCours[cle];
+            if (err && err.code === "invalid_argument") {
+              etat("mort", "Tu peux consulter cette page mais pas la modifier.");
+              ecrire = null; ecrireWk = null; ajouterWk = null;
+              rendreInvites();
+              rendreWeekend();
+            } else {
+              etat("mort", "L'enregistrement a échoué. Réessaie dans un instant.");
+            }
+          });
+        };
+        envoyer();
+      };
+
+      /* Les reperes du week-end n'ont pas de contrepartie dans le classeur :
+         pas de valeur d'origine a emporter, pas de reversement a preparer.
+         Le document porte simplement le dernier etat connu. */
+      ecrireWk = function (quoi, id, corps, li) {
+        var cle = "wk/" + quoi + "/" + id;
+        if (enCours[cle]) { enCours[cle] = corps; return; }
+        enCours[cle] = corps;
+        var aEcrire = enCours[cle];
+        // date de creation, conservee : elle sert a ranger les points ajoutes.
+        // Surtout pas « quand », qui porte deja le libelle affiche d'un repere.
+        var deja = (quoi === "jalons" ? jalons : ouverts)[id];
+        aEcrire.cree = (deja && deja.cree) || new Date().toISOString();
+        colWk[quoi].doc(id).set(aEcrire).then(function () {
+          delete enCours[cle];
+          if (li) {
+            li.classList.remove("enregistre");
+            void li.offsetWidth;
+            li.classList.add("enregistre");
+          }
+          etat("vivant", "Enregistr\u00e9 \u2014 les autres organisateurs le voient aussit\u00f4t.");
+        }).catch(function (err) {
+          delete enCours[cle];
+          if (err && err.code === "invalid_argument") {
+            etat("mort", "Tu peux consulter cette page mais pas la modifier.");
+            ecrireWk = null; ajouterWk = null;
+            rendreWeekend();
+          } else {
+            etat("mort", "L'enregistrement a \u00e9chou\u00e9. R\u00e9essaie dans un instant.");
+          }
+        });
+      };
+      ajouterWk = function (quoi, corps) {
+        corps.cree = new Date().toISOString();
+        return colWk[quoi].add(corps);
+      };
+
+      ["jalons", "ouverts"].forEach(function (quoi) {
+        colWk[quoi].onSnapshot(function (snap) {
+          var neuf = {};
+          snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+          if (quoi === "jalons") { jalons = neuf; } else { ouverts = neuf; }
+          rendreWeekend();
+        }, function () {
+          etat("mort", "La feuille partag\u00e9e s'est interrompue. Recharge la page.");
+        });
+      });
+
+      colAjouts.onSnapshot(function (snap) {
+        var neuf = {};
+        snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+        ajouts = neuf;
+        rendreTout();
+      }, function () {
+        etat("mort", "La feuille partagée s'est interrompue. Recharge la page.");
+      });
+
+      colSaisies.onSnapshot(function (snap) {
+        var neuf = {};
+        snap.docs.forEach(function (d) {
+          var c = d.data() || {};
+          var e = {};
+          if (c.contribution !== undefined && c.contribution !== null) { e.contribution = c.contribution; }
+          else if (c.contribution === null) { e.contribution = ""; }
+          if (c.statut) { e.statut = c.statut; }
+          if (typeof c.recu === "number") { e.recu = c.recu; }
+          if (typeof c.nom === "string") { e.nom = c.nom; }
+          if (typeof c.prenoms === "string") { e.prenoms = c.prenoms; }
+          if (typeof c.personnes === "number") { e.personnes = c.personnes; }
+          if (typeof c.moins15 === "number") { e.moins15 = c.moins15; }
+          if (c.envoyee === true) { e.envoyee = true; }
+          if (c.retiree === true) { e.retiree = true; }
+          neuf[d.id] = e;
+        });
+        saisies = neuf;
+        rendreTout();
+        if ($("etat-saisie").className.indexOf("vivant") < 0) {
+          etat("vivant", "Feuille partagée active — ce que tu changes ici, les autres le voient.");
+        }
+      }, function () {
+        etat("mort", "La feuille partagée s'est interrompue. Recharge la page pour la retrouver.");
+      });
+
+      var form = $("ajout"), bouton = $("a-ok");
+      bouton.disabled = false;
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var nom = $("a-nom").value.trim();
+        if (!nom) { $("a-nom").focus(); return; }
+        bouton.disabled = true;
+        colAjouts.add({
+          nouvelle: true,
+          nom: nom,
+          prenoms: $("a-prenoms").value.trim(),
+          par: $("a-par").value || null,
+          personnes: null,
+          moins15: 0,
+          contribution: null,
+          statut: "En attente",
+          recu: 0,
+          envoyee: false,
+          retiree: false,
+          quand: new Date().toISOString()
+        }).then(function () {
+          $("a-nom").value = ""; $("a-prenoms").value = "";
+          $("a-nom").focus();
+          etat("vivant", "Invitation ajoutée — elle apparaît aussi chez les autres.");
+        }).catch(function () {
+          etat("mort", "L'ajout a échoué. Réessaie dans un instant.");
+        }).then(function () { bouton.disabled = false; });
+      });
+
+      (function () {
+        remplirOrganisateurs($("on-par"), "", "Qui s'en occupe\u2026");
+
+        var fj = $("jalon-neuf"), bj = $("jn-ok");
+        bj.disabled = false;
+        fj.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var debut = $("jn-debut").value, quoi = $("jn-quoi").value.trim();
+          if (!debut || !quoi) { (debut ? $("jn-quoi") : $("jn-debut")).focus(); return; }
+          var fin = $("jn-fin").value || debut;
+          bj.disabled = true;
+          ajouterWk("jalons", {
+            debut: debut, fin: fin, quand: libelleDates(debut, fin),
+            quoi: quoi, note: $("jn-note").value.trim(), retire: false
+          }).then(function () {
+            $("jn-quoi").value = ""; $("jn-note").value = "";
+            $("jn-debut").value = ""; $("jn-fin").value = "";
+            etat("vivant", "Rep\u00e8re ajout\u00e9 \u2014 il appara\u00eet aussi chez les autres.");
+          }).catch(function () {
+            etat("mort", "L'ajout a \u00e9chou\u00e9. R\u00e9essaie dans un instant.");
+          }).then(function () { bj.disabled = false; });
+        });
+
+        var fo = $("ouvert-neuf"), bo = $("on-ok");
+        bo.disabled = false;
+        fo.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var titre = $("on-titre").value.trim();
+          if (!titre) { $("on-titre").focus(); return; }
+          bo.disabled = true;
+          ajouterWk("ouverts", {
+            titre: titre, detail: $("on-detail").value.trim(),
+            tranche: false, decision: "", par: $("on-par").value || "", retire: false
+          }).then(function () {
+            $("on-titre").value = ""; $("on-detail").value = ""; $("on-par").value = "";
+            $("on-titre").focus();
+            etat("vivant", "Point ajout\u00e9 \u2014 il appara\u00eet aussi chez les autres.");
+          }).catch(function () {
+            etat("mort", "L'ajout a \u00e9chou\u00e9. R\u00e9essaie dans un instant.");
+          }).then(function () { bo.disabled = false; });
+        });
+      })();
+
+      $("mot-saisie").textContent = " Les invitations ajoutées, les contributions, les réponses "
+        + "et les règlements saisis ici sont partagés entre organisateurs, et reversés dans le "
+        + "classeur sur demande. Les repères et les décisions du week-end se modifient de la "
+        + "même façon ; eux n'existent que sur cette page.";
+      rendreInvites();
+    }).catch(function () {
+      etat("mort", "Feuille partagée indisponible : la page reste consultable.");
+    });
+  })();
+}
+window.demarrer = demarrer;
+</script>
