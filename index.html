@@ -156,6 +156,13 @@
 
   /* ---------- panneaux & grille ---------- */
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: stretch; }
+
+  /* Trois colonnes laissaient la troisieme vide sous les deux panneaux du
+     bas, et le regard tombait dans le trou. Deux colonnes : chacun prend sa
+     moitie, et les hauteurs s'egalisent d'elles-memes. */
+  @media (min-width: 700px) {
+    #v-apercu .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   .panneau { display: flex; flex-direction: column; }
   .panneau > .contrib { flex: 1 1 auto; justify-content: space-around; }
   .panneau {
@@ -873,18 +880,15 @@
         </div>
 
         <div class="panneau large">
-          <h3>Les 38 places de chacun</h3>
-          <p class="sous">
-            192 places pour cinq organisateurs, qui ne se comptent pas eux-mêmes.
-            Répartition visée du buffet : 35 % salé, 40 % spécialité, 25 % sucré.
-          </p>
+          <h3 id="titre-quotas">Les places de chacun</h3>
+          <p class="sous" id="sous-quotas">&mdash;</p>
           <div class="defile">
             <table>
               <thead><tr>
                 <th scope="col">Organisateur</th>
                 <th scope="col" class="droite">Invit.</th>
                 <th scope="col" class="droite">Pers.</th>
-                <th scope="col" class="droite">Écart à 38</th>
+                <th scope="col" class="droite" id="th-ecart">Écart</th>
                 <th scope="col">Salé · Spé · Sucré</th>
                 <th scope="col" class="droite">Sans contrib.</th>
               </tr></thead>
@@ -1200,8 +1204,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609202259"></script>
-<script src="acces.js?v=202609202259"></script>
+<script src="config.js?v=202609202352"></script>
+<script src="acces.js?v=202609202352"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1395,7 +1399,7 @@ function demarrer() {
   var JALONS_DEFAUT = [
     { id: "j1", debut: "2026-09-19", fin: "2026-10-18",
       quand: "19 septembre 2026", quoi: "Envoi des invitations", mesure: "envoyees",
-      note: "Trois mois pile avant la fête. Chacun priorise ses 38 places et ajuste "
+      note: "Trois mois pile avant la fête. Chacun priorise ses places et ajuste "
           + "ensuite selon les réponses." },
     { id: "j2", debut: "2026-10-01", fin: "2026-10-19",
       quand: "19 octobre 2026", quoi: "Réponses et règlements", mesure: "reponses",
@@ -1423,7 +1427,7 @@ function demarrer() {
   var OUVERTS_DEFAUT = [
     { id: "o1", titre: "Qui vient, puisque tout le monde ne peut pas",
       detail: "La salle est limitée à 192 personnes et la liste en compte davantage. "
-            + "Chacun priorise ses 38 places les plus importantes, et ajuste ensuite "
+            + "Chacun priorise ses places les plus importantes, et ajuste ensuite "
             + "selon les réponses." },
     { id: "o2", titre: "L'heure de fin de la musique",
       detail: "Elle dépend du contrat de la salle et de l'arrêté municipal — mais pas "
@@ -2117,7 +2121,27 @@ function demarrer() {
       : "<b>" + accorde(-manque, "personne de trop", "personnes de trop")
         + "</b> par rapport à la salle.") + precision;
 
-    var QUOTA = 38, detail = {};
+    /* Ce que chacun peut inviter n'est pas un chiffre a retenir : c'est la
+       salle, moins les organisateurs eux-memes, divise par leur nombre. Il
+       bouge des que la jauge bouge -- et elle a deja bouge une fois. */
+    var equipe = {};
+    D.invites.forEach(function (g) { if (g.par) { equipe[g.par] = 1; } });
+    var nbOrga = Math.max(1, Object.keys(equipe).length);
+    var QUOTA = Math.floor(places / nbOrga);
+
+    $("titre-quotas").textContent = "Les " + QUOTA + " places de chacun";
+    $("th-ecart").textContent = "Écart à " + QUOTA;
+    $("sous-quotas").textContent =
+      places + " places à distribuer — " + jauge + " dans la salle moins "
+      + accorde(orga, "organisateur qui ne se compte pas lui-même",
+                      "organisateurs qui ne se comptent pas eux-mêmes")
+      + ", pour " + accorde(nbOrga, "personne qui invite", "personnes qui invitent")
+      + ". Répartition visée du buffet : "
+      + CONTRIBUTIONS.map(function (n) {
+          return pourcent.format(D.parts[n] || 0) + " " + n.toLowerCase();
+        }).join(", ") + ".";
+
+    var detail = {};
     v.forEach(function (g) {
       var qui = g.par || "Sans invitant";
       var d = detail[qui] || (detail[qui] = { inv: 0, per: 0, "Salé": 0, "Sucré": 0, "Spécialité": 0, sans: 0 });
