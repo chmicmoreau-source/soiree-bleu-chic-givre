@@ -651,6 +651,16 @@
     padding: 3px 9px; font-family: var(--sans); font-size: .76rem; color: var(--gris-bleu);
   }
   #deconnexion:hover { color: var(--givre); border-color: rgba(220,236,250,.5); }
+
+  .vers-pointage { margin: 0 0 18px; text-align: right; }
+  .vers-pointage a {
+    display: inline-block; padding: 9px 16px;
+    background: rgba(220,236,250,.12); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.42); border-radius: var(--pas);
+    font-size: .89rem; text-decoration: none;
+  }
+  .vers-pointage a:hover { background: rgba(220,236,250,.2); }
+  .vers-pointage a:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
 </style>
 
 <svg width="0" height="0" aria-hidden="true" style="position:absolute">
@@ -724,6 +734,10 @@
     <button role="tab" id="t-argent" aria-controls="v-argent" aria-selected="false">L'argent</button>
     <button role="tab" id="t-weekend" aria-controls="v-weekend" aria-selected="false">Le week-end</button>
   </nav>
+  <p class="vers-pointage">
+  <a href="pointage.html">Le soir venu : pointer les arrivées &rarr;</a>
+</p>
+
 
   <div class="volet" role="tabpanel" id="v-apercu" aria-labelledby="t-apercu">
     <div id="alerte-jauge"></div>
@@ -1033,8 +1047,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200753"></script>
-<script src="acces.js?v=202609200753"></script>
+<script src="config.js?v=202609200758"></script>
+<script src="acces.js?v=202609200758"></script>
 <script>
 function demarrer() {
   "use strict";

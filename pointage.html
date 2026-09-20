@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>À la porte</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000C3C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+  /* Même nuit de glace que le tableau de bord, mais tout est redimensionné
+     pour une main : cibles de 48px, une seule colonne, et le compteur qui
+     reste sous les yeux pendant qu'on fait défiler la liste. */
+  :root {
+    --nuit:        #000C3C;
+    --nuit-clair:  #001844;
+    --median:      #3F6597;
+    --gris-bleu:   #627FA6;
+    --givre:       #DCECFA;
+    --argent:      #E8E8EC;
+    --blanc:       #F0FCFC;
+    --du:      #D9A441;
+    --regle:   #4FB286;
+    --alerte:  #E68A8A;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans:  "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono:  "IBM Plex Mono", Consolas, ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    background: var(--nuit);
+    color: var(--blanc);
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ---------------- la porte ---------------- */
+  #porte {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; background: var(--nuit);
+  }
+  #porte[hidden] { display: none; }
+  .porte-boite {
+    width: 100%; max-width: 420px;
+    padding: 26px 22px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.32);
+    border-top: 2px solid var(--givre);
+    border-radius: 4px;
+  }
+  .porte-boite h2 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.6rem; color: var(--blanc);
+  }
+  .porte-boite .sous { margin: 6px 0 20px; color: var(--gris-bleu); font-size: .92rem; }
+  .porte-boite label {
+    display: block; font-family: var(--mono); font-size: .7rem;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--median); margin-bottom: 5px;
+  }
+  .porte-boite input[type="email"] {
+    width: 100%; margin-bottom: 14px;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: 3px;
+    padding: 13px 12px; font-family: var(--sans); font-size: 16px;
+  }
+  .porte-boite button {
+    appearance: none; cursor: pointer; width: 100%;
+    background: rgba(220,236,250,.14); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.45); border-radius: 3px;
+    padding: 14px 16px; font-family: var(--sans); font-size: 1rem; font-weight: 600;
+  }
+  .porte-mot { margin: 14px 0 0; font-size: .88rem; color: var(--gris-bleu); }
+  .porte-mot:empty { display: none; }
+  .porte-mot.raté { color: var(--alerte); }
+  #porte-attente[hidden], #porte-refus[hidden], #porte-forme[hidden] { display: none; }
+
+  /* ---------------- le bandeau qui suit ---------------- */
+  .barre {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(0,12,60,.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(99,127,166,.3);
+    padding: 12px 16px calc(12px + env(safe-area-inset-top));
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  .titre {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .titre h1 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.15rem; color: var(--givre); letter-spacing: .01em;
+  }
+  #moi { font-family: var(--mono); font-size: .68rem; color: var(--median); }
+  #moi[hidden] { display: none; }
+  #deconnexion {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 3px 8px; font-family: var(--sans); font-size: .72rem; color: var(--gris-bleu);
+    margin-left: 6px;
+  }
+
+  .compte { display: flex; align-items: baseline; gap: 8px; }
+  .compte .gros {
+    font-family: var(--mono); font-size: 2.3rem; font-weight: 600;
+    color: var(--blanc); line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .compte .sur { color: var(--gris-bleu); font-size: .9rem; }
+  .compte .sur b { font-family: var(--mono); color: var(--argent); font-weight: 600; }
+  .avance { height: 5px; margin: 9px 0 8px; background: rgba(99,127,166,.24); border-radius: 3px; overflow: hidden; }
+  .avance i { display: block; height: 100%; background: var(--regle); border-radius: 3px; transition: width .3s; }
+  .appoints {
+    display: flex; flex-wrap: wrap; gap: 6px 14px;
+    font-family: var(--mono); font-size: .74rem; color: var(--gris-bleu);
+    font-variant-numeric: tabular-nums;
+  }
+  .appoints b { color: var(--argent); font-weight: 600; }
+  .appoints .sous-du b { color: var(--du); }
+
+  /* ---------------- recherche et filtres ---------------- */
+  .outils { padding: 12px 16px 6px; }
+  #q {
+    width: 100%; appearance: none;
+    background: var(--nuit-clair); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: 6px;
+    padding: 13px 14px; font-family: var(--sans); font-size: 16px;
+  }
+  #q:focus-visible { outline: 2px solid var(--givre); outline-offset: 1px; }
+  .chips { display: flex; gap: 7px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips button {
+    appearance: none; cursor: pointer; white-space: nowrap;
+    background: none; color: var(--gris-bleu);
+    border: 1px solid rgba(99,127,166,.4); border-radius: 999px;
+    padding: 8px 14px; font-family: var(--sans); font-size: .85rem;
+  }
+  .chips button[aria-pressed="true"] {
+    background: rgba(220,236,250,.16); color: var(--givre);
+    border-color: rgba(220,236,250,.5); font-weight: 600;
+  }
+  .chips .nb { font-family: var(--mono); font-size: .76rem; opacity: .75; margin-left: 5px; }
+
+  /* ---------------- la liste ---------------- */
+  #liste { list-style: none; margin: 0; padding: 6px 16px 90px; display: grid; gap: 10px; }
+  .fiche {
+    padding: 13px 14px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.28);
+    border-left: 3px solid var(--median);
+    border-radius: 6px;
+  }
+  .fiche.ici { border-left-color: var(--regle); background: rgba(79,178,134,.07); }
+  .fiche.doit { border-left-color: var(--du); }
+  .fiche.ici.doit { border-left-color: var(--du); }
+  .nom { display: block; font-size: 1.08rem; font-weight: 600; color: var(--blanc); letter-spacing: .01em; }
+  .prenoms { display: block; font-size: .9rem; color: var(--gris-bleu); margin-top: 1px; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 7px;
+    font-family: var(--mono); font-size: .74rem; color: var(--median);
+  }
+  .rappel {
+    display: block; margin-top: 9px; padding: 9px 11px;
+    background: rgba(217,164,65,.14); border: 1px solid rgba(217,164,65,.45);
+    border-radius: 4px; color: var(--du); font-size: .88rem;
+  }
+  .rappel b { font-family: var(--mono); font-weight: 600; font-size: 1rem; }
+  .solde { margin-top: 7px; font-family: var(--mono); font-size: .74rem; color: var(--regle); }
+
+  .actes { display: flex; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+  .actes button {
+    appearance: none; cursor: pointer; min-height: 48px;
+    border-radius: 6px; font-family: var(--sans); font-size: .95rem; font-weight: 600;
+    padding: 0 16px;
+  }
+  .pointer {
+    flex: 1 1 140px;
+    background: rgba(220,236,250,.14); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.45);
+  }
+  .pointer:active { background: rgba(220,236,250,.3); }
+  .encaisser {
+    flex: 1 1 140px;
+    background: rgba(217,164,65,.16); color: var(--du);
+    border: 1px solid rgba(217,164,65,.5);
+  }
+  .encaisser:active { background: rgba(217,164,65,.3); }
+  .annuler {
+    background: none; color: var(--gris-bleu);
+    border: 1px solid rgba(99,127,166,.4); font-weight: 400; flex: 0 0 auto;
+  }
+  .actes button:disabled { opacity: .4; }
+
+  .reglage { display: flex; align-items: center; gap: 0; flex: 1 1 160px; }
+  .reglage button {
+    flex: 0 0 48px; min-width: 48px; padding: 0;
+    background: rgba(79,178,134,.12); color: var(--regle);
+    border: 1px solid rgba(79,178,134,.45); font-size: 1.3rem; font-weight: 400;
+  }
+  .reglage button:first-child { border-radius: 6px 0 0 6px; }
+  .reglage button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+  .reglage .compteur {
+    flex: 1 1 auto; min-height: 48px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(79,178,134,.12);
+    border: 1px solid rgba(79,178,134,.45); border-left: none; border-right: none;
+    font-family: var(--mono); color: var(--regle); font-variant-numeric: tabular-nums;
+  }
+  .reglage .compteur b { font-size: 1.15rem; font-weight: 600; line-height: 1.1; }
+  .reglage .compteur span { font-size: .64rem; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+
+  .vide { padding: 40px 16px; text-align: center; color: var(--median); font-style: italic; }
+
+  #etat-saisie {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+    background: rgba(0,12,60,.97); border-top: 1px solid rgba(99,127,166,.3);
+    font-size: .84rem; color: var(--gris-bleu); text-align: center;
+  }
+  #etat-saisie.vivant { color: var(--regle); border-top-color: rgba(79,178,134,.4); }
+  #etat-saisie.mort { color: var(--du); border-top-color: rgba(217,164,65,.45); }
+  #etat-saisie:empty { display: none; }
+
+  .lien-retour {
+    display: block; text-align: center; padding: 18px 16px 30px;
+    color: var(--median); font-size: .84rem;
+  }
+
+  @media (min-width: 720px) {
+    .barre, .outils, #liste, .lien-retour { max-width: 640px; margin-left: auto; margin-right: auto; }
+    .barre { border-radius: 0 0 8px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="porte" hidden>
+  <div class="porte-boite">
+    <h2>À la porte</h2>
+    <p class="sous">Pointage des arrivées. On entre par son adresse mail, sans mot de passe.</p>
+
+    <form id="porte-forme" hidden>
+      <label for="porte-mail">Ton adresse mail</label>
+      <input type="email" id="porte-mail" autocomplete="email" inputmode="email" required
+             placeholder="prenom@exemple.fr">
+      <button type="submit" id="porte-ok">Recevoir mon lien de connexion</button>
+    </form>
+
+    <div id="porte-attente" hidden>
+      <p>Un lien vient de partir vers <b id="porte-adresse"></b>.</p>
+      <p class="sous">Ouvre-le depuis ce téléphone. Le lien ne sert qu'une fois.</p>
+    </div>
+
+    <div id="porte-refus" hidden>
+      <p><b id="porte-refus-mail"></b> ne fait pas partie de l'équipe.</p>
+      <p class="sous">Demande à Mickaël d'ajouter cette adresse.</p>
+    </div>
+
+    <p class="porte-mot" id="porte-mot"></p>
+  </div>
+</div>
+
+<header class="barre">
+  <div class="titre">
+    <h1>À la porte</h1>
+    <div id="moi" hidden><span id="moi-nom"></span><button type="button" id="deconnexion">Sortir</button></div>
+  </div>
+  <div class="compte">
+    <b class="gros" id="pres">0</b>
+    <span class="sur">sur <b id="att">0</b> attendus</span>
+  </div>
+  <div class="avance"><i id="avance" style="width:0%"></i></div>
+  <div class="appoints">
+    <span><b id="foyers-ici">0</b> foyer(s) arrivé(s)</span>
+    <span class="sous-du"><b id="reste-soir">0 €</b> encore dus</span>
+    <span><b id="encaisse-soir">0 €</b> encaissés ce soir</span>
+  </div>
+</header>
+
+<div class="outils">
+  <input type="search" id="q" placeholder="Chercher un nom…" autocomplete="off"
+         aria-label="Chercher un invité par son nom">
+  <div class="chips" role="group" aria-label="Filtres">
+    <button type="button" data-f="attente" aria-pressed="true">Pas arrivés<span class="nb" id="n-attente"></span></button>
+    <button type="button" data-f="ici" aria-pressed="false">Arrivés<span class="nb" id="n-ici"></span></button>
+    <button type="button" data-f="du" aria-pressed="false">À encaisser<span class="nb" id="n-du"></span></button>
+    <button type="button" data-f="tous" aria-pressed="false">Tous<span class="nb" id="n-tous"></span></button>
+  </div>
+</div>
+
+<ul id="liste"></ul>
+
+<a class="lien-retour" href="index.html">← Le tableau de bord complet</a>
+
+<div id="etat-saisie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js?v=202609200758"></script>
+<script src="acces.js?v=202609200758"></script>
+<script>
+/* Le soir venu : une liste, un bouton par foyer, et le compte qui monte.
+
+   Cette page partage la porte d'entrée et la base du tableau de bord ; elle
+   n'en reprend ni la structure ni les onglets. À la porte, on tient un
+   téléphone d'une main et on cherche un nom : tout le reste est du bruit.
+
+   Trois collections en jeu :
+     classeur  — ce que le fichier Excel dit des invitations (lecture seule)
+     saisies   — ce que l'équipe a modifié en ligne, reversé plus tard dans Excel
+     pointage  — les arrivées de ce soir, et ce qui a été encaissé à la porte
+*/
+function demarrer() {
+  "use strict";
+
+  var D = window.DONNEES;
+  var TA = D.tarif_adulte || 8, TE = D.tarif_enfant || 3;
+
+  var saisies = {};    // les modifications en ligne, par numéro de ligne
+  var ajouts = {};     // les invitations créées en ligne
+  var pointage = {};   // les arrivées de ce soir
+  var ecrire = null;   // posé par la feuille partagée quand elle répond
+  var filtre = "attente";
+
+  var euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR",
+                                               maximumFractionDigits: 0 });
+
+  function $(id) { return document.getElementById(id); }
+  function creer(t, c, x) {
+    var e = document.createElement(t);
+    if (c) { e.className = c; }
+    if (x !== undefined) { e.textContent = x; }
+    return e;
+  }
+  function accorde(n, un, plusieurs) { return n + " " + (Math.abs(n) > 1 ? plusieurs : un); }
+
+  function etat(classe, texte) {
+    var e = $("etat-saisie");
+    e.className = classe || "";
+    e.textContent = texte || "";
+  }
+
+  /** Combien de prénoms sont saisis : le classeur compte pareil. */
+  function comptePrenoms(texte) {
+    if (!texte) { return 0; }
+    return texte.split(",").filter(function (x) { return x.trim() !== ""; }).length;
+  }
+
+  /** Une invitation telle qu'elle est vraiment, classeur et saisies fondus. */
+  function fusion(g) {
+    var s = saisies[g.ligne] || {};
+    var prenoms = s.hasOwnProperty("prenoms") ? s.prenoms : g.prenoms;
+    var personnes = s.hasOwnProperty("personnes") && s.personnes !== null
+      ? s.personnes
+      : (s.hasOwnProperty("prenoms") ? comptePrenoms(prenoms) : g.personnes);
+    var moins15 = s.hasOwnProperty("moins15") ? s.moins15 : (g.moins15 || 0);
+    var enfants = Math.min(moins15, personnes);
+    return {
+      cle: "L" + g.ligne, col: "saisies", docId: String(g.ligne), ligne: g.ligne,
+      nom: s.hasOwnProperty("nom") ? s.nom : g.nom,
+      prenoms: prenoms, par: g.par, personnes: personnes,
+      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      recu: s.hasOwnProperty("recu") ? s.recu : g.recu,
+      statut: s.statut || g.statut,
+      retiree: s.retiree === true,
+      origine: g
+    };
+  }
+
+  function fusionAjout(id, a) {
+    var prenoms = a.prenoms || "";
+    var personnes = (typeof a.personnes === "number" && a.personnes !== null)
+      ? a.personnes : comptePrenoms(prenoms);
+    var moins15 = typeof a.moins15 === "number" ? a.moins15 : 0;
+    var enfants = Math.min(moins15, personnes);
+    return {
+      cle: id, col: "ajouts", docId: id, ligne: null,
+      nom: a.nom || "", prenoms: prenoms, par: a.par || null, personnes: personnes,
+      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      recu: typeof a.recu === "number" ? a.recu : 0,
+      statut: a.statut || "En attente",
+      retiree: a.retiree === true,
+      origine: a
+    };
+  }
+
+  /** Ceux qui peuvent se présenter à la porte : ni annulés, ni retirés. */
+  function attendus() {
+    var base = D.invites.map(fusion);
+    var sup = Object.keys(ajouts).map(function (id) { return fusionAjout(id, ajouts[id]); });
+    return base.concat(sup).filter(function (g) {
+      return g.statut !== "Annulé" && !g.retiree;
+    });
+  }
+
+  function ici(g) {
+    var p = pointage[g.cle];
+    return p && typeof p.presents === "number" ? p.presents : 0;
+  }
+  function estIci(g) { return !!(pointage[g.cle] && pointage[g.cle].arrive); }
+  function reste(g) { return Math.max(0, g.du - (g.recu || 0)); }
+
+  /* ---------------- écrire ---------------- */
+
+  /** Une arrivée : combien de personnes, et par qui pointées. */
+  function poserPointage(g, champs, fiche) {
+    if (!ecrire) { return; }
+    var d = pointage[g.cle] || {};
+    var corps = {
+      cle: g.cle, col: g.col, docId: g.docId,
+      ligne: g.ligne, nom: g.nom,
+      arrive: d.arrive === true,
+      presents: typeof d.presents === "number" ? d.presents : 0,
+      encaisse: typeof d.encaisse === "number" ? d.encaisse : 0,
+      quand: d.quand || null
+    };
+    for (var k in champs) { corps[k] = champs[k]; }
+    corps.quand = new Date().toISOString();
+    pointage[g.cle] = corps;            // l'écran répond tout de suite
+    rendre();
+    ecrire("pointage", g.cle, corps, fiche);
+  }
+
+  /** Un règlement encaissé à la porte. Il part dans « saisies », comme une
+      saisie ordinaire du tableau de bord : c'est ce qui le fera remonter dans
+      le classeur au reversement. Les repères de fusion l'accompagnent. */
+  function poserReglement(g, montant, fiche) {
+    if (!ecrire) { return; }
+    if (g.col === "ajouts") {
+      var a = ajouts[g.docId] || {};
+      var neuf = {};
+      for (var k in a) { neuf[k] = a[k]; }
+      neuf.recu = montant;
+      ajouts[g.docId] = neuf;
+      ecrire("ajouts", g.docId, neuf, fiche);
+    } else {
+      var o = g.origine || {};
+      var s = saisies[g.ligne] || {};
+      var corps = {
+        nouvelle: false,
+        arrete: D.arrete,
+        ancre: o.nom === undefined ? null : o.nom,
+        par: o.par || null,
+        base: {
+          nom: o.nom === undefined ? null : o.nom,
+          prenoms: o.prenoms === undefined ? null : o.prenoms,
+          personnes: o.personnes === undefined ? null : o.personnes,
+          moins15: o.moins15 === undefined ? null : o.moins15,
+          contribution: o.contribution === undefined ? null : o.contribution,
+          statut: o.statut === undefined ? null : o.statut,
+          recu: o.recu === undefined ? null : o.recu
+        },
+        contribution: s.hasOwnProperty("contribution") ? s.contribution : null,
+        statut: s.statut || null,
+        recu: montant,
+        nom: s.hasOwnProperty("nom") ? s.nom : null,
+        prenoms: s.hasOwnProperty("prenoms") ? s.prenoms : null,
+        personnes: s.hasOwnProperty("personnes") ? s.personnes : null,
+        moins15: s.hasOwnProperty("moins15") ? s.moins15 : null,
+        envoyee: s.envoyee === true,
+        retiree: s.retiree === true,
+        quand: new Date().toISOString()
+      };
+      var neuve = {};
+      for (var j in s) { neuve[j] = s[j]; }
+      neuve.recu = montant;
+      saisies[g.ligne] = neuve;
+      ecrire("saisies", String(g.ligne), corps, fiche);
+    }
+    rendre();
+  }
+
+  /* ---------------- dessiner ---------------- */
+
+  function fiches(liste) {
+    var ul = $("liste");
+    ul.textContent = "";
+    if (!liste.length) {
+      ul.appendChild(creer("li", "vide", "Personne ne correspond."));
+      return;
+    }
+    liste.forEach(function (g) {
+      var la = estIci(g), du = reste(g);
+      var li = creer("li", "fiche" + (la ? " ici" : "") + (du > 0 ? " doit" : ""));
+
+      li.appendChild(creer("b", "nom", g.nom || "sans nom"));
+      if (g.prenoms) { li.appendChild(creer("span", "prenoms", g.prenoms)); }
+
+      var meta = creer("div", "meta");
+      meta.appendChild(creer("span", null, accorde(g.personnes, "personne", "personnes")));
+      if (g.par) { meta.appendChild(creer("span", null, "invité par " + g.par)); }
+      li.appendChild(meta);
+
+      if (du > 0) {
+        var r = creer("div", "rappel");
+        r.appendChild(document.createTextNode("Règlement non reçu — "));
+        r.appendChild(creer("b", null, euros.format(du)));
+        r.appendChild(document.createTextNode(
+          (g.recu ? " restants sur " + euros.format(g.du) : " à encaisser")));
+        li.appendChild(r);
+      } else if (g.du > 0) {
+        li.appendChild(creer("div", "solde", "réglé — " + euros.format(g.du)));
+      }
+
+      var actes = creer("div", "actes");
+
+      if (!la) {
+        var b = creer("button", "pointer", "Arrivés");
+        b.type = "button";
+        b.disabled = !ecrire;
+        b.addEventListener("click", function () {
+          poserPointage(g, { arrive: true, presents: g.personnes }, li);
+        });
+        actes.appendChild(b);
+      } else {
+        var reg = creer("div", "reglage");
+        var moins = creer("button", null, "−");
+        moins.type = "button";
+        moins.setAttribute("aria-label", "Une personne de moins");
+        moins.disabled = !ecrire || ici(g) <= 0;
+        moins.addEventListener("click", function () {
+          poserPointage(g, { presents: Math.max(0, ici(g) - 1) }, li);
+        });
+        reg.appendChild(moins);
+
+        var c = creer("div", "compteur");
+        c.appendChild(creer("b", null, String(ici(g)) + " / " + g.personnes));
+        c.appendChild(creer("span", null, "présents"));
+        reg.appendChild(c);
+
+        var plus = creer("button", null, "+");
+        plus.type = "button";
+        plus.setAttribute("aria-label", "Une personne de plus");
+        plus.disabled = !ecrire;
+        plus.addEventListener("click", function () {
+          poserPointage(g, { presents: ici(g) + 1 }, li);
+        });
+        reg.appendChild(plus);
+        actes.appendChild(reg);
+
+        var ann = creer("button", "annuler", "Annuler");
+        ann.type = "button";
+        ann.disabled = !ecrire;
+        ann.title = "Cette famille n'est finalement pas là";
+        ann.addEventListener("click", function () {
+          poserPointage(g, { arrive: false, presents: 0 }, li);
+        });
+        actes.appendChild(ann);
+      }
+
+      if (du > 0) {
+        var e = creer("button", "encaisser", "Encaisser " + euros.format(du));
+        e.type = "button";
+        e.disabled = !ecrire;
+        e.addEventListener("click", function () {
+          if (!window.confirm("Encaisser " + euros.format(du) + " de la part de "
+                              + (g.nom || "cette invitation") + " ?")) { return; }
+          poserReglement(g, g.du, li);
+          poserPointage(g, { encaisse: du }, li);
+        });
+        actes.appendChild(e);
+      }
+
+      li.appendChild(actes);
+      ul.appendChild(li);
+    });
+  }
+
+  function rendre() {
+    var tous = attendus();
+
+    var attPers = 0, presPers = 0, foyersIci = 0, resteTotal = 0, encaisseSoir = 0;
+    tous.forEach(function (g) {
+      attPers += g.personnes;
+      if (estIci(g)) { presPers += ici(g); foyersIci += 1; }
+      resteTotal += reste(g);
+      var p = pointage[g.cle];
+      if (p && typeof p.encaisse === "number") { encaisseSoir += p.encaisse; }
+    });
+
+    $("pres").textContent = String(presPers);
+    $("att").textContent = String(attPers);
+    $("avance").style.width = (attPers ? Math.min(100, (presPers / attPers) * 100) : 0).toFixed(1) + "%";
+    $("foyers-ici").textContent = foyersIci + " / " + tous.length;
+    $("reste-soir").textContent = euros.format(resteTotal);
+    $("encaisse-soir").textContent = euros.format(encaisseSoir);
+
+    var q = ($("q").value || "").trim().toLowerCase();
+    var vus = tous.filter(function (g) {
+      if (q) {
+        var t = ((g.nom || "") + " " + (g.prenoms || "")).toLowerCase();
+        if (t.indexOf(q) < 0) { return false; }
+      }
+      if (filtre === "attente") { return !estIci(g); }
+      if (filtre === "ici") { return estIci(g); }
+      if (filtre === "du") { return reste(g) > 0; }
+      return true;
+    });
+
+    // les comptes de chaque filtre, avant la recherche : ils disent l'état
+    // de la soirée, pas celui de la recherche en cours
+    var nAtt = 0, nIci = 0, nDu = 0;
+    tous.forEach(function (g) {
+      if (estIci(g)) { nIci += 1; } else { nAtt += 1; }
+      if (reste(g) > 0) { nDu += 1; }
+    });
+    $("n-attente").textContent = nAtt;
+    $("n-ici").textContent = nIci;
+    $("n-du").textContent = nDu;
+    $("n-tous").textContent = tous.length;
+
+    // à la porte, l'ordre alphabétique est le seul qui serve
+    vus.sort(function (a, b) {
+      return (a.nom || "").localeCompare(b.nom || "", "fr", { sensitivity: "base" });
+    });
+    fiches(vus);
+  }
+
+  /* ---------------- brancher ---------------- */
+
+  $("q").addEventListener("input", rendre);
+  [].forEach.call(document.querySelectorAll(".chips button"), function (b) {
+    b.addEventListener("click", function () {
+      filtre = b.getAttribute("data-f");
+      [].forEach.call(document.querySelectorAll(".chips button"), function (x) {
+        x.setAttribute("aria-pressed", x === b ? "true" : "false");
+      });
+      rendre();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  rendre();
+
+  claude.use("db").then(function (db) {
+    if (!db) {
+      etat("mort", "Feuille partagée indisponible : rien ne peut être enregistré.");
+      return;
+    }
+    var cols = {
+      saisies: db.collection("saisies"),
+      ajouts: db.collection("ajouts"),
+      pointage: db.collection("pointage")
+    };
+    var enCours = {};
+
+    ecrire = function (col, id, corps, fiche) {
+      var cle = col + "/" + id;
+      if (enCours[cle]) { enCours[cle] = corps; return; }
+      enCours[cle] = corps;
+      cols[col].doc(id).set(enCours[cle]).then(function () {
+        delete enCours[cle];
+        etat("vivant", "Enregistré — les autres le voient aussitôt.");
+      }).catch(function (err) {
+        delete enCours[cle];
+        if (err && err.code === "invalid_argument") {
+          etat("mort", "Tu peux consulter cette page mais pas pointer.");
+          ecrire = null;
+          rendre();
+        } else {
+          etat("mort", "L'enregistrement a échoué. Réessaie.");
+        }
+      });
+    };
+
+    cols.pointage.onSnapshot(function (snap) {
+      var neuf = {};
+      snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+      pointage = neuf;
+      rendre();
+    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+
+    cols.saisies.onSnapshot(function (snap) {
+      var neuf = {};
+      snap.docs.forEach(function (d) {
+        var c = d.data() || {};
+        var e = {};
+        if (typeof c.contribution === "string") { e.contribution = c.contribution; }
+        if (c.statut) { e.statut = c.statut; }
+        if (typeof c.recu === "number") { e.recu = c.recu; }
+        if (typeof c.nom === "string") { e.nom = c.nom; }
+        if (typeof c.prenoms === "string") { e.prenoms = c.prenoms; }
+        if (typeof c.personnes === "number") { e.personnes = c.personnes; }
+        if (typeof c.moins15 === "number") { e.moins15 = c.moins15; }
+        if (c.envoyee === true) { e.envoyee = true; }
+        if (c.retiree === true) { e.retiree = true; }
+        neuf[d.id] = e;
+      });
+      saisies = neuf;
+      rendre();
+      etat("vivant", "Pointage partagé — chacun voit les arrivées des autres.");
+    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+
+    cols.ajouts.onSnapshot(function (snap) {
+      var neuf = {};
+      snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+      ajouts = neuf;
+      rendre();
+    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+  }).catch(function () {
+    etat("mort", "Feuille partagée indisponible.");
+  });
+}
+window.demarrer = demarrer;
+</script>
+</body>
+</html>
