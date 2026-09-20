@@ -98,13 +98,16 @@
   .retour[hidden] { display: none; }
 
   /* ---------------- le bandeau qui suit ---------------- */
+  /* Le titre et le bouton d'accueil defilent ; seuls le compteur et les
+     onglets restent colles. Sur un telephone, chaque ligne figee en haut est
+     une ligne de liste en moins. */
+  .chapeau-jour { padding: calc(12px + env(safe-area-inset-top)) 16px 0; }
+
   .barre {
     position: sticky; top: 0; z-index: 20;
-    background: rgba(0,12,60,.96);
-    backdrop-filter: blur(8px);
+    background: var(--nuit);
     border-bottom: 1px solid rgba(99,127,166,.3);
-    padding: 12px 16px calc(12px + env(safe-area-inset-top));
-    padding-top: calc(12px + env(safe-area-inset-top));
+    padding: 10px 16px 0;
   }
   .titre {
     display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
@@ -142,8 +145,8 @@
 
   /* ---------------- les deux onglets du soir ---------------- */
   .jours {
-    display: flex; gap: 0; margin: 10px 0 0;
-    border-bottom: 1px solid rgba(99,127,166,.3);
+    display: flex; gap: 0; margin: 10px -16px 0;
+    border-top: 1px solid rgba(99,127,166,.22);
   }
   .jours button {
     appearance: none; cursor: pointer; flex: 1 1 0;
@@ -307,7 +310,9 @@
   }
 
   @media (min-width: 720px) {
-    .barre, .outils, #liste { max-width: 640px; margin-left: auto; margin-right: auto; }
+    .chapeau-jour, .barre, .outils, #liste, #volontaires {
+      max-width: 640px; margin-left: auto; margin-right: auto;
+    }
     .barre { border-radius: 0 0 8px 8px; }
   }
 </style>
@@ -340,12 +345,15 @@
   </div>
 </div>
 
-<header class="barre">
+<div class="chapeau-jour">
   <a class="retour" href="index.html" target="_top">&larr; Accueil</a>
   <div class="titre">
     <h1>Jour J</h1>
     <div id="moi" hidden><span id="moi-nom"></span><button type="button" id="deconnexion">Sortir</button></div>
   </div>
+</div>
+
+<header class="barre">
   <div class="compte">
     <b class="gros" id="pres">0</b>
     <span class="sur">sur <b id="att">0</b> attendus</span>
@@ -356,12 +364,12 @@
     <span class="sous-du"><b id="reste-soir">0 €</b> encore dus</span>
     <span><b id="encaisse-soir">0 €</b> encaissés ce soir</span>
   </div>
-</header>
 
-<nav class="jours" role="tablist" aria-label="Le soir venu">
-  <button role="tab" id="t-arrivees" aria-controls="v-arrivees" aria-selected="true">Arrivées</button>
-  <button role="tab" id="t-volontaires" aria-controls="v-volontaires" aria-selected="false">Volontaires<span class="nb" id="n-vol"></span></button>
-</nav>
+  <nav class="jours" role="tablist" aria-label="Le soir venu">
+    <button role="tab" id="t-arrivees" aria-controls="v-arrivees" aria-selected="true">Arrivées</button>
+    <button role="tab" id="t-volontaires" aria-controls="v-volontaires" aria-selected="false">Volontaires<span class="nb" id="n-vol"></span></button>
+  </nav>
+</header>
 
 <div role="tabpanel" id="v-arrivees" aria-labelledby="t-arrivees">
 <div class="outils">
@@ -385,8 +393,8 @@
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609201017"></script>
-<script src="acces.js?v=202609201017"></script>
+<script src="config.js?v=202609201049"></script>
+<script src="acces.js?v=202609201049"></script>
 <script>
 /* Le soir venu : une liste, un bouton par foyer, et le compte qui monte.
 
