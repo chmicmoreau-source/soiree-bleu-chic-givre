@@ -35,6 +35,12 @@
 
   function fermerLaPorte() { $("porte").hidden = true; }
 
+  /** Un mot dans le bandeau de la page, une fois celle-ci ouverte. */
+  function direEtat(texte) {
+    var e = $("etat-saisie");
+    if (e) { e.className = "etat-saisie mort"; e.textContent = texte; }
+  }
+
   /* ------------------------------------------------------------ la porte */
 
   function montrerConnexion(prefill) {
@@ -125,19 +131,29 @@
       });
     }
 
-    // Un seul canal pour toute la table : Supabase ne filtre pas par
-    // collection côté serveur sans index dédié, et le volume est dérisoire.
-    sb.channel("docs-en-direct")
-      .on("postgres_changes",
-          { event: "*", schema: "public", table: "docs" },
-          function (p) {
-            var r = p.new && p.new.collection ? p.new : p.old;
-            if (!r || !cache[r.collection]) { return; }
-            if (p.eventType === "DELETE") { delete cache[r.collection][r.id]; }
-            else { cache[r.collection][r.id] = p.new.contenu || {}; }
-            pousser(r.collection);
-          })
-      .subscribe();
+    /* Le direct entre navigateurs : ce qui fait qu'une case cochée par Diane
+       apparaît chez Séverine sans recharger. C'est un confort, pas le coeur
+       du site — s'il échoue, la page doit marcher quand même, simplement
+       sans rafraîchissement spontané. D'où le try/catch, et le nom de canal
+       unique : Supabase refuse d'ajouter un écouteur à un canal déjà ouvert,
+       et un nom fixe suffisait à faire tout tomber. */
+    try {
+      sb.channel("docs-" + Date.now() + "-" + Math.random().toString(36).slice(2))
+        .on("postgres_changes",
+            { event: "*", schema: "public", table: "docs" },
+            function (p) {
+              var r = p.new && p.new.collection ? p.new : p.old;
+              if (!r || !cache[r.collection]) { return; }
+              if (p.eventType === "DELETE") { delete cache[r.collection][r.id]; }
+              else { cache[r.collection][r.id] = p.new.contenu || {}; }
+              pousser(r.collection);
+            })
+        .subscribe();
+    } catch (e) {
+      direEtat("Le direct entre navigateurs n'a pas pu s'établir : tes saisies "
+             + "sont bien enregistrées, mais celles des autres n'apparaîtront "
+             + "qu'au rechargement.");
+    }
 
     laFeuille = {
       collection: function (col) {
