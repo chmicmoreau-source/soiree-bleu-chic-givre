@@ -217,7 +217,9 @@
   .contrib-ligne .pied .ecart { font-family: var(--mono); font-variant-numeric: tabular-nums; }
   .colonnes { display: flex; align-items: flex-end; gap: 9px; height: 140px; }
   .colonnes .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
-  .colonnes .col i { display: block; background: var(--pas2); border-radius: 2px 2px 0 0; min-height: 2px; }
+  /* « --pas2 » n'a jamais existé — c'était une coquille pour --pas, qui vaut
+     4px : un fond invalide, donc transparent, et des barres invisibles. */
+  .colonnes .col i { display: block; background: var(--duo-clair); border-radius: 2px 2px 0 0; min-height: 3px; }
   .colonnes .col .n { font-family: var(--mono); font-size: .8rem; color: var(--argent); text-align: center; margin-bottom: 4px; }
   .colonnes .col .etiq { font-size: .75rem; color: var(--gris-bleu); text-align: center; margin-top: 6px; }
   .empilee { display: flex; height: 28px; border-radius: 3px; overflow: hidden; gap: 2px; }
@@ -1013,8 +1015,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200737"></script>
-<script src="acces.js?v=202609200737"></script>
+<script src="config.js?v=202609200748"></script>
+<script src="acces.js?v=202609200748"></script>
 <script>
 function demarrer() {
   "use strict";
