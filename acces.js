@@ -73,8 +73,16 @@
 
   /* --------------------------------------- la feuille partagée, revisitée */
 
-  /** Rend un objet qui parle comme l'ancienne feuille partagée de Claude. */
+  var laFeuille = null;   // une seule, jamais deux : voir plus bas
+
+  /** Rend un objet qui parle comme l'ancienne feuille partagée de Claude.
+      Elle n'est construite qu'une fois. Un second appel rouvrirait le canal
+      temps réel sous le même nom, et Supabase refuse d'ajouter un écouteur à
+      un canal déjà souscrit — c'est ce qui cassait la page au retour du lien
+      reçu par mail. */
   function feuillePartagee() {
+    if (laFeuille) { return laFeuille; }
+
     var abonnes = {};   // collection -> fonctions à prévenir
     var cache = {};     // collection -> { id: contenu }
 
@@ -131,7 +139,7 @@
           })
       .subscribe();
 
-    return {
+    laFeuille = {
       collection: function (col) {
         return {
           doc: function (id) {
@@ -150,6 +158,7 @@
         };
       }
     };
+    return laFeuille;
   }
 
   /* ------------------------------------------------- les données à l'entrée */
@@ -176,7 +185,16 @@
 
   /* ------------------------------------------------------------ l'entrée */
 
+  var entree = false;
+  var lance = false;
+
+  /** Au retour du lien reçu par mail, la session arrive par deux chemins à la
+      fois : getSession() la trouve, et onAuthStateChange annonce SIGNED_IN.
+      Sans ce verrou la page se lance deux fois, et le second passage vient
+      recouvrir d'une erreur celui qui avait réussi. */
   function entrer(session) {
+    if (entree) { return Promise.resolve(); }
+    entree = true;
     moi = (session.user.email || "").toLowerCase();
     return sb.from("organisateurs").select("nom").eq("email", moi)
       .then(function (r) {
@@ -199,11 +217,20 @@
           $("moi-nom").textContent = monNom;
           $("moi").hidden = false;
           fermerLaPorte();
+          lance = true;
           window.demarrer();
         });
       })
       .catch(function (e) {
-        dire("Impossible de charger les données : " + (e.message || e), "raté");
+        // Une fois la page lancée, on ne la recouvre plus : le souci se dit
+        // dans le bandeau, sinon on effacerait un écran qui marchait.
+        var mot = "Impossible de charger les données : " + (e.message || e);
+        if (lance) {
+          var bande = $("etat-saisie");
+          if (bande) { bande.className = "etat-saisie mort"; bande.textContent = mot; }
+          return;
+        }
+        dire(mot, "raté");
         $("porte").hidden = false;
       });
   }
@@ -232,9 +259,9 @@
       if (s) { entrer(s); } else { montrerConnexion(""); }
     });
 
-    var partie = false;
     sb.auth.onAuthStateChange(function (evt, s) {
-      if (evt === "SIGNED_IN" && s && !partie) { partie = true; entrer(s); }
+      // « entrer » se garde lui-même de partir deux fois.
+      if ((evt === "SIGNED_IN" || evt === "INITIAL_SESSION") && s) { entrer(s); }
       if (evt === "SIGNED_OUT") { window.location.reload(); }
     });
   }
