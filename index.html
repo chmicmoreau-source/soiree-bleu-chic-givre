@@ -1200,8 +1200,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609201811"></script>
-<script src="acces.js?v=202609201811"></script>
+<script src="config.js?v=202609202259"></script>
+<script src="acces.js?v=202609202259"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2972,16 +2972,22 @@ function demarrer() {
     }).catch(function () { /* la page vit sans */ });
   }
 
+  /* « docId » et non « cle » : le premier est le numero de ligne du classeur,
+     le second un identifiant d'affichage (« L62 »). Le reversement cherche
+     le premier ; avec le second, un paiement confirme n'aurait jamais rejoint
+     Excel. */
+  function clePaiement(g) { return String(g.docId); }
+
   function paye(g) {
-    var p = paiements[String(g.cle)];
+    var p = paiements[clePaiement(g)];
     return !!(p && p.recu);
   }
 
   function poserPaiement(g, etat, tr, moyen) {
     if (!jeSuisTresorier() || typeof window.givreTable !== "function") { return; }
-    var ancien = paiements[String(g.cle)] || {};
+    var ancien = paiements[clePaiement(g)] || {};
     var corps = {
-      ligne: String(g.cle), recu: etat === true,
+      ligne: clePaiement(g), recu: etat === true,
       montant: etat ? g.du : null,
       // par quel chemin l'argent est arrivé : ceux de l'invitation, plus
       // l'espèce et le chèque encaissés à la porte
@@ -2989,11 +2995,26 @@ function demarrer() {
       quand: new Date().toISOString(),
       par: (window.givreMoi && window.givreMoi.nom) || null
     };
-    paiements[String(g.cle)] = corps;   // l'écran répond tout de suite
+    paiements[clePaiement(g)] = corps;   // l'écran répond tout de suite
     rendreInvites();
     rendreArgent();
-    window.givreTable("paiements").poser([corps], "ligne").catch(function () {
-      etat2("mort", "La confirmation n'a pas pu être enregistrée.");
+    /* PostgREST ne REJETTE pas quand il refuse : il resout avec un champ
+       « error ». Ne pas le lire, c'est afficher une case cochee sur un
+       enregistrement qui n'a jamais eu lieu. */
+    window.givreTable("paiements").poser([corps], "ligne").then(function (r) {
+      if (r && r.error) {
+        delete paiements[clePaiement(g)];
+        rendreInvites();
+        etat2("mort", "La confirmation a été refusée : "
+                    + (r.error.message || r.error.code || "motif inconnu")
+                    + ". Rien n'a été enregistré.");
+        return;
+      }
+      etat2("vivant", "Paiement confirmé — enregistré.");
+    }).catch(function (e) {
+      delete paiements[clePaiement(g)];
+      rendreInvites();
+      etat2("mort", "La confirmation n'a pas pu être envoyée : " + (e.message || e));
     });
   }
 
@@ -3162,7 +3183,7 @@ function demarrer() {
 
       // le moyen n'a de sens qu'une fois l'argent arrivé
       if (paye(g)) {
-        var quel = (paiements[String(g.cle)] || {}).moyen || g.moyen || "";
+        var quel = (paiements[clePaiement(g)] || {}).moyen || g.moyen || "";
         var sm = document.createElement("select");
         sm.className = quel ? "" : "a-dire";
         sm.disabled = !jeSuisTresorier();
@@ -3184,7 +3205,7 @@ function demarrer() {
       }
       if (!jeSuisTresorier()) {
         tdp.title = paye(g)
-          ? "Confirmé par " + ((paiements[String(g.cle)] || {}).par || "le trésorier")
+          ? "Confirmé par " + ((paiements[clePaiement(g)] || {}).par || "le trésorier")
           : "Seul celui qui reçoit les virements peut cocher cette case.";
       }
       tr.appendChild(tdp);
