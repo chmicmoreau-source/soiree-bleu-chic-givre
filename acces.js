@@ -266,7 +266,9 @@
       return null;
     }
 
-    return sb.from("organisateurs").select("nom,tresorier").eq("email", moi)
+    // « * » plutot que la liste des colonnes : reclamer « tresorier » avant
+    // que le schema ne l'ait creee faisait echouer toute la connexion.
+    return sb.from("organisateurs").select("*").eq("email", moi)
       .then(function (r) {
         if (r.error) { throw r.error; }
         if (!r.data || !r.data.length) {
