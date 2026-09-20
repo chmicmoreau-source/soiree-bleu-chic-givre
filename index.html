@@ -990,8 +990,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200709"></script>
-<script src="acces.js?v=202609200709"></script>
+<script src="config.js?v=202609200728"></script>
+<script src="acces.js?v=202609200728"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1639,18 +1639,30 @@ function demarrer() {
     var personnes = v.reduce(function (s, g) { return s + g.personnes; }, 0);
     var objectif = D.objectif || 200, jauge = D.jauge || 0;
 
+    /* Les organisateurs ne figurent pas dans la liste et ne paient pas, mais
+       ils occupent des places : la jauge les comprend. Tout ce qui se compare
+       a la salle doit donc parler du total present, pas des seuls invites. */
+    var orga = D.organisateurs || 0;
+    var presents = personnes + orga;
+    var places = Math.max(0, jauge - orga);   // ce qui reste pour les invites
+
     var boite = $("alerte-jauge");
     boite.textContent = ""; boite.className = "";
-    var trop = personnes - jauge;
+    var trop = presents - jauge;
     if (jauge && trop > 0) {
       boite.className = "alerte-jauge";
       boite.appendChild(creer("span", "nb", "−" + trop));
       var dit = creer("div", "dit");
       dit.appendChild(creer("h3", null, "La salle est dépassée"));
       var p = creer("p");
-      p.innerHTML = "La salle accueille <b>" + jauge + "</b> personnes au maximum, et <b>" +
-        personnes + "</b> sont sur la liste. C'est une limite de sécurité : elle passe avant " +
-        "le remplissage et avant la recette. Chacun priorise ses 38 places.";
+      p.innerHTML = "La salle accueille <b>" + jauge + "</b> personnes au maximum, "
+        + (orga
+            ? "organisateurs compris. En retirant vos <b>" + orga + "</b> places, il en reste "
+              + "<b>" + places + "</b> pour les invités, et <b>" + personnes
+              + "</b> sont sur la liste. "
+            : "et <b>" + personnes + "</b> sont sur la liste. ")
+        + "C'est une limite de sécurité : elle passe avant le remplissage et avant "
+        + "la recette.";
       dit.appendChild(p);
       boite.appendChild(dit);
     }
@@ -1658,14 +1670,14 @@ function demarrer() {
     var arc = $("arc");
     arc.textContent = "";
     var CX = 125, CY = 122, RA = 98;
-    var part = Math.max(0, Math.min(1, objectif ? personnes / objectif : 0));
+    var part = Math.max(0, Math.min(1, objectif ? presents / objectif : 0));
     arc.appendChild(svg("path", { d: cheminArc(CX, CY, RA, 0, 1), fill: "none",
       stroke: "rgba(99,127,166,.2)", "stroke-width": 18, "stroke-linecap": "round" }));
     if (part > 0) {
       arc.appendChild(svg("path", { d: cheminArc(CX, CY, RA, 0, part), fill: "none",
-        stroke: personnes > jauge ? "#E68A8A" : "#A8C4E2", "stroke-width": 18, "stroke-linecap": "round" }));
+        stroke: presents > jauge ? "#E68A8A" : "#A8C4E2", "stroke-width": 18, "stroke-linecap": "round" }));
     }
-    if (jauge && objectif) {
+    if (jauge && objectif && jauge < objectif) {
       var t = Math.max(0, Math.min(1, jauge / objectif));
       var a1 = pointArc(CX, CY, RA + 14, t), a2 = pointArc(CX, CY, RA - 14, t);
       arc.appendChild(svg("line", { x1: a1[0].toFixed(1), y1: a1[1].toFixed(1),
@@ -1676,18 +1688,23 @@ function demarrer() {
       arc.appendChild(lab);
     }
     var nb = svg("text", { "class": "arc-nb", x: CX, y: CY - 12 });
-    nb.textContent = String(personnes);
+    nb.textContent = String(presents);
     arc.appendChild(nb);
     var sur = svg("text", { "class": "arc-sur", x: CX, y: CY + 10 });
-    sur.textContent = "SUR " + objectif + " VISÉES";
+    sur.textContent = "SUR " + objectif + (orga ? " PLACES" : " VISÉES");
     arc.appendChild(sur);
 
-    var manque = objectif - personnes;
-    $("arc-phrase").innerHTML = manque > 0
-      ? pourcent.format(part) + " de l'objectif. Il reste <b>" + accorde(manque, "personne", "personnes") +
-        "</b> à inscrire, sur <b>" + accorde(v.length, "invitation", "invitations") + "</b>."
-      : "Objectif dépassé de <b>" + accorde(-manque, "personne", "personnes") + "</b>, sur <b>" +
-        accorde(v.length, "invitation", "invitations") + "</b>.";
+    var manque = objectif - presents;
+    var precision = orga
+      ? " <b>" + personnes + "</b> invités sur <b>"
+        + accorde(v.length, "invitation", "invitations") + "</b>, plus <b>"
+        + accorde(orga, "organisateur", "organisateurs") + "</b> qui ne paient pas."
+      : " Sur <b>" + accorde(v.length, "invitation", "invitations") + "</b>.";
+    $("arc-phrase").innerHTML = (manque > 0
+      ? pourcent.format(part) + " des places. Il en reste <b>"
+        + accorde(manque, "libre", "libres") + "</b>."
+      : "<b>" + accorde(-manque, "personne de trop", "personnes de trop")
+        + "</b> par rapport à la salle.") + precision;
 
     var QUOTA = 38, detail = {};
     v.forEach(function (g) {
