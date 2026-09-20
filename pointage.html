@@ -309,10 +309,18 @@
     border: 1px solid rgba(217,164,65,.5);
   }
 
+  /* Deux colonnes de fiches seulement quand il y a vraiment la place : les
+     boutons du pointage sont larges, les serrer trop tot les ferait passer a
+     la ligne et la cible deviendrait penible a viser. */
+  @media (min-width: 900px) {
+    #liste, #volontaires { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   @media (min-width: 720px) {
     .chapeau-jour, .barre, .outils, #liste, #volontaires {
-      max-width: 640px; margin-left: auto; margin-right: auto;
+      max-width: 820px; margin-left: auto; margin-right: auto;
     }
+
     .barre { border-radius: 0 0 8px 8px; }
   }
 </style>
@@ -393,8 +401,8 @@
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609202352"></script>
-<script src="acces.js?v=202609202352"></script>
+<script src="config.js?v=202609202356"></script>
+<script src="acces.js?v=202609202356"></script>
 <script>
 /* Le soir venu : une liste, un bouton par foyer, et le compte qui monte.
 

@@ -54,7 +54,10 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  .page { max-width: 1040px; margin: 0 auto; padding: 0 20px 90px; }
+  /* 1040px convenait a un article ; ce n en est pas un. Un tableau de bord se
+     lit d un coup d oeil, et laisser un tiers de l ecran vide oblige a
+     defiler pour rien. La liste des invitations va plus loin encore. */
+  .page { max-width: 1320px; margin: 0 auto; padding: 0 20px 90px; }
 
   /* ---------- en-tête compact ---------- */
   .entete {
@@ -133,7 +136,7 @@
      écran d'ordinateur. Seul l'onglet des invitations, qui s'étale jusqu'à
      1560px, garde un plafond : au-delà, l'œil perd la ligne en revenant. */
   .chapeau { margin: 0 0 20px; color: var(--gris-bleu); font-size: .93rem; }
-  .page.large .chapeau { max-width: 108ch; }
+  .chapeau { max-width: 104ch; }
   .chapeau b { color: var(--blanc); font-weight: 600; }
   .chapeau .chiffre { font-family: var(--mono); color: var(--argent); }
 
@@ -161,7 +164,7 @@
      bas, et le regard tombait dans le trou. Deux colonnes : chacun prend sa
      moitie, et les hauteurs s'egalisent d'elles-memes. */
   @media (min-width: 700px) {
-    #v-apercu .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   .panneau { display: flex; flex-direction: column; }
   .panneau > .contrib { flex: 1 1 auto; justify-content: space-around; }
@@ -245,7 +248,7 @@
      un tableau, lui, gagne a s'etaler. Le defilement horizontal reste la, en
      dernier recours, sur les ecrans trop etroits. */
   .page.large { max-width: 1560px; }
-  .page.large .onglets { max-width: 1040px; margin-left: auto; margin-right: auto; }
+  .page.large .onglets { max-width: 1320px; margin-left: auto; margin-right: auto; }
 
   #v-invitations table { font-size: .86rem; }
   #v-invitations td, #v-invitations th { padding-left: 7px; padding-right: 7px; }
@@ -1204,8 +1207,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609202352"></script>
-<script src="acces.js?v=202609202352"></script>
+<script src="config.js?v=202609202356"></script>
+<script src="acces.js?v=202609202356"></script>
 <script>
 function demarrer() {
   "use strict";
