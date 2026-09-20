@@ -418,6 +418,46 @@
   .plan-etat.bouge { animation: flash 1.2s ease-out; }
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
+  /* ---------- les dépenses ---------- */
+  .course {
+    display: grid; gap: 9px; align-items: end;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    padding: 14px 16px; margin-bottom: 16px;
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.3);
+    border-left: 2px solid var(--regle); border-radius: var(--pas);
+  }
+  .course label {
+    display: block; font-family: var(--mono); font-size: .68rem;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--median);
+    margin-bottom: 4px;
+  }
+  .course input, .course select {
+    width: 100%; appearance: none;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 8px 10px; font-family: var(--sans); font-size: .88rem;
+  }
+  .course input:focus-visible, .course select:focus-visible {
+    outline: 2px solid var(--givre); outline-offset: 1px;
+  }
+  .course #d-montant { font-family: var(--mono); text-align: right; }
+  .course button {
+    appearance: none; cursor: pointer; min-height: 37px;
+    background: rgba(79,178,134,.16); color: var(--regle);
+    border: 1px solid rgba(79,178,134,.5); border-radius: 3px;
+    padding: 8px 15px; font-family: var(--sans); font-size: .88rem; font-weight: 600;
+  }
+  .course button:hover { background: rgba(79,178,134,.26); }
+  .course button:disabled { opacity: .4; cursor: not-allowed; }
+
+  tr.a-verser td:first-child { box-shadow: inset 3px 0 0 var(--regle); }
+  .avances {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0;
+    font-family: var(--mono); font-size: .8rem; color: var(--gris-bleu);
+  }
+  .avances b { color: var(--argent); font-weight: 600; }
+  .avances .du b { color: var(--du); }
+
   /* ---------- les coups de main ---------- */
   .coup .horaire { display: grid; gap: 5px; margin: 10px 0 12px; }
   .coup .horaire .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
@@ -1108,6 +1148,44 @@
         <span class="chiffre">116</span> et <span class="chiffre">151</span> adultes payants
         pour rentrer dans les frais.
       </p>
+      <h2 style="margin-top:34px">Les dépenses</h2>
+      <p class="chapeau">
+        Tout ce qui est acheté pour la soirée, et par qui. Une dépense saisie ici
+        rejoint l'onglet <em>Dépenses</em> du classeur au prochain reversement.
+      </p>
+
+      <form class="course" id="depense-neuve">
+        <div><label for="d-date">Date</label>
+          <input type="date" id="d-date"></div>
+        <div><label for="d-poste">Quoi</label>
+          <input type="text" id="d-poste" placeholder="Boissons Leclerc" required></div>
+        <div><label for="d-categorie">Poste</label>
+          <select id="d-categorie"></select></div>
+        <div><label for="d-fournisseur">Où</label>
+          <input type="text" id="d-fournisseur" placeholder="Magasin"></div>
+        <div><label for="d-montant">Montant</label>
+          <input type="number" id="d-montant" min="0" step="0.01" placeholder="0,00" required></div>
+        <div><label for="d-par">Avancé par</label>
+          <select id="d-par"></select></div>
+        <div><button type="submit" id="d-ok" disabled>Ajouter</button></div>
+      </form>
+
+      <div class="defile">
+        <table>
+          <thead><tr>
+            <th scope="col">Date</th>
+            <th scope="col">Quoi</th>
+            <th scope="col">Poste</th>
+            <th scope="col">Où</th>
+            <th scope="col" class="droite">Montant</th>
+            <th scope="col">Avancé par</th>
+            <th scope="col" class="droite">Remboursé</th>
+          </tr></thead>
+          <tbody id="corps-depenses"></tbody>
+        </table>
+      </div>
+      <p class="avances" id="avances"></p>
+
       <div class="panneau" style="margin-top:20px">
         <h3>La taille des foyers</h3>
         <p class="sous">Utile pour disposer les tables.</p>
@@ -1207,8 +1285,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609202356"></script>
-<script src="acces.js?v=202609202356"></script>
+<script src="config.js?v=202609210003"></script>
+<script src="acces.js?v=202609210003"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2194,6 +2272,100 @@ function demarrer() {
     empiler("statuts", "statuts-legende", REPONSES.map(function (r) {
       return { nom: r.mot, n: parStatut[r.code] || 0, couleur: TEINTE_STATUT[r.code] };
     }));
+  }
+
+  /* ---------------- les dépenses ----------------
+
+     Celles du classeur et celles saisies ici se lisent ensemble. Une dépense
+     ajoutée en ligne porte un repère vert tant qu'elle n'a pas rejoint
+     l'onglet « Dépenses » : on voit d'un coup d'oeil ce qui reste à reverser. */
+
+  var achatsEnLigne = {};
+
+  function toutesLesDepenses() {
+    var out = (D.achats || []).map(function (a) {
+      var x = {}; for (var k in a) { x[k] = a[k]; }
+      x.source = "classeur";
+      return x;
+    });
+    Object.keys(achatsEnLigne).forEach(function (id) {
+      var a = achatsEnLigne[id];
+      if (a.retiree) { return; }
+      out.push({
+        id: id, date: a.date || "", poste: a.poste || "",
+        categorie: a.categorie || null, fournisseur: a.fournisseur || null,
+        montant: Number(a.montant) || 0, par: a.par || null,
+        rembourse: Number(a.rembourse) || 0,
+        source: a.versee_le ? "classeur" : "en ligne"
+      });
+    });
+    return out;
+  }
+
+  /** « 2026-09-21 » se lit mal ; le classeur écrit 21/09/2026. */
+  function dateCourte(t) {
+    if (!t) { return "—"; }
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : t;
+  }
+
+  function rendreDepenses() {
+    var corps = $("corps-depenses");
+    if (!corps) { return; }
+    var liste = toutesLesDepenses();
+
+    liste.sort(function (a, b) {
+      var da = /^\d{2}\/\d{2}\/\d{4}$/.test(a.date)
+        ? a.date.split("/").reverse().join("-") : a.date;
+      var db = /^\d{2}\/\d{2}\/\d{4}$/.test(b.date)
+        ? b.date.split("/").reverse().join("-") : b.date;
+      return String(db).localeCompare(String(da));
+    });
+
+    corps.textContent = "";
+    var total = 0, rembourse = 0, parQui = {};
+    liste.forEach(function (a) {
+      total += a.montant;
+      rembourse += a.rembourse;
+      if (a.par) { parQui[a.par] = (parQui[a.par] || 0) + (a.montant - a.rembourse); }
+
+      var tr = creer("tr");
+      if (a.source === "en ligne") { tr.className = "a-verser"; }
+      tr.appendChild(creer("td", null, dateCourte(a.date)));
+      tr.appendChild(creer("td", null, a.poste || "—"));
+      tr.appendChild(creer("td", null, a.categorie || "—"));
+      tr.appendChild(creer("td", null, a.fournisseur || "—"));
+      tr.appendChild(creer("td", "nombre", euros.format(a.montant)));
+      tr.appendChild(creer("td", null, a.par || "—"));
+      var r = creer("td", "nombre" + (a.rembourse < a.montant ? " reste-du" : ""),
+        a.rembourse ? euros.format(a.rembourse) : "—");
+      tr.appendChild(r);
+      corps.appendChild(tr);
+    });
+
+    if (!liste.length) {
+      var vide = creer("tr");
+      var td = creer("td", "manquant", "Aucune dépense pour l'instant.");
+      td.colSpan = 7;
+      vide.appendChild(td);
+      corps.appendChild(vide);
+    }
+
+    var mot = $("avances");
+    mot.textContent = "";
+    var bloc = function (etiquette, valeur, classe) {
+      var e = creer("span", classe || null);
+      e.appendChild(document.createTextNode(etiquette + " "));
+      e.appendChild(creer("b", null, euros.format(valeur)));
+      return e;
+    };
+    mot.appendChild(bloc("total dépensé", total));
+    mot.appendChild(bloc("remboursé", rembourse));
+    mot.appendChild(bloc("reste à rembourser", total - rembourse, "du"));
+    Object.keys(parQui).sort().forEach(function (q) {
+      if (parQui[q] <= 0) { return; }
+      mot.appendChild(bloc("dû à " + q, parQui[q], "du"));
+    });
   }
 
   /* ---------------- les coups de main ---------------- */
@@ -3309,6 +3481,21 @@ function demarrer() {
   })();
 
   (function () {
+    var sc = $("d-categorie"), sp = $("d-par");
+    if (!sc) { return; }
+    var vide = creer("option", "", "Poste…");
+    vide.value = "";
+    sc.appendChild(vide);
+    (D.categories || []).forEach(function (c) {
+      var o = creer("option", "", c);
+      o.value = c;
+      sc.appendChild(o);
+    });
+    remplirOrganisateurs(sp, (window.givreMoi && window.givreMoi.nom) || "", "Qui a payé…");
+    $("d-date").value = new Date().toISOString().slice(0, 10);
+  })();
+
+  (function () {
     var sf = $("r-foyer"), sr = $("r-role"), ok = $("r-ok");
     if (!sf) { return; }
     sf.addEventListener("change", majRecrue);
@@ -3354,6 +3541,7 @@ function demarrer() {
     rendreArgent();
     rendreInvites();
     rendreCoups();
+    rendreDepenses();
     rendreWeekend();
   }
 
@@ -3550,6 +3738,49 @@ function demarrer() {
           etat("mort", "La feuille partag\u00e9e s'est interrompue. Recharge la page.");
         });
       });
+
+      var colDepenses = db.collection("depenses");
+
+      colDepenses.onSnapshot(function (snap) {
+        var neuf = {};
+        snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+        achatsEnLigne = neuf;
+        rendreDepenses();
+      }, function () { /* la page vit sans */ });
+
+      (function () {
+        var f = $("depense-neuve"), ok = $("d-ok");
+        if (!f) { return; }
+        ok.disabled = false;
+        f.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var poste = $("d-poste").value.trim();
+          var montant = Number($("d-montant").value);
+          if (!poste || !(montant > 0)) {
+            (poste ? $("d-montant") : $("d-poste")).focus();
+            return;
+          }
+          ok.disabled = true;
+          colDepenses.add({
+            date: $("d-date").value || "",
+            poste: poste,
+            categorie: $("d-categorie").value || null,
+            fournisseur: $("d-fournisseur").value.trim() || null,
+            montant: montant,
+            par: $("d-par").value || null,
+            rembourse: 0,
+            retiree: false,
+            quand: new Date().toISOString()
+          }).then(function () {
+            $("d-poste").value = ""; $("d-montant").value = "";
+            $("d-fournisseur").value = "";
+            $("d-poste").focus();
+            etat("vivant", "Dépense ajoutée — elle rejoindra le classeur au prochain reversement.");
+          }).catch(function () {
+            etat("mort", "L'ajout de la dépense a échoué. Réessaie.");
+          }).then(function () { ok.disabled = false; });
+        });
+      })();
 
       colAjouts.onSnapshot(function (snap) {
         var neuf = {};
