@@ -225,6 +225,31 @@
 
   /* ---------- tableaux ---------- */
   .defile { overflow-x: auto; }
+
+  /* La liste des invitations a douze colonnes a tenir. Elle seule sort de la
+     colonne de lecture : ailleurs, une ligne de texte large se lit mal, mais
+     un tableau, lui, gagne a s'etaler. Le defilement horizontal reste la, en
+     dernier recours, sur les ecrans trop etroits. */
+  .page.large { max-width: 1560px; }
+  .page.large .onglets { max-width: 1040px; margin-left: auto; margin-right: auto; }
+
+  #v-invitations table { font-size: .86rem; }
+  #v-invitations td, #v-invitations th { padding-left: 7px; padding-right: 7px; }
+  #v-invitations td select, #v-invitations td input[type="number"] { min-width: 0; }
+  #v-invitations td input.nom-large { min-width: 0; width: 100%; }
+  #v-invitations td input.prenoms-large { min-width: 0; width: 100%; }
+
+  /* deux nombres dans une seule colonne : le total, et la part des enfants */
+  .paire { display: flex; align-items: center; gap: 5px; }
+  .paire input { width: 48px; min-width: 0; }
+  .paire .sep { color: var(--median); font-family: var(--mono); font-size: .72rem; }
+  td .dessous {
+    display: block; margin-top: 2px;
+    font-family: var(--mono); font-size: .72rem; color: var(--gris-bleu);
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  td .dessous.reste-du { color: var(--du); }
+
   table { border-collapse: collapse; width: 100%; font-size: .9rem; }
   th {
     text-align: left; font-weight: 600; font-size: .7rem; letter-spacing: .1em;
@@ -804,14 +829,12 @@
             <th scope="col">Nom</th>
             <th scope="col">Prénoms</th>
             <th scope="col">Par</th>
-            <th scope="col" class="droite">Pers.</th>
-            <th scope="col" class="droite">− 15 ans</th>
+            <th scope="col" class="droite" title="Nombre de personnes, dont celles de moins de 15 ans">Pers. / −15</th>
             <th scope="col">Contribution</th>
             <th scope="col" class="milieu">Envoyée</th>
             <th scope="col">Réponse</th>
             <th scope="col" class="milieu">Réglé</th>
-            <th scope="col" class="droite">Reçu</th>
-            <th scope="col" class="droite">Reste</th>
+            <th scope="col" class="droite" title="Montant reçu, et ce qui reste dû">Reçu</th>
             <th scope="col"></th>
           </tr></thead>
           <tbody id="corps-invites"></tbody>
@@ -990,8 +1013,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200728"></script>
-<script src="acces.js?v=202609200728"></script>
+<script src="config.js?v=202609200737"></script>
+<script src="acces.js?v=202609200737"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1081,6 +1104,33 @@ function demarrer() {
     return td;
   }
 
+  /** Deux petits nombres dans une seule cellule : le total et, derrière une
+      barre oblique, la part des moins de quinze ans. Douze colonnes ne
+      tenaient pas dans la largeur ; celles qui vont par paire se replient. */
+  function champPaire(etiq1, val1, action1, etiq2, val2, action2, inerte) {
+    var td = creer("td", "nombre");
+    var boite = creer("div", "paire");
+    [[etiq1, val1, action1], [etiq2, val2, action2]].forEach(function (x, i) {
+      if (i === 1) { boite.appendChild(creer("span", "sep", "/")); }
+      var e = document.createElement("input");
+      e.type = "number";
+      e.min = "0";
+      e.step = "1";
+      e.value = String(x[1] || 0);
+      e.disabled = !!inerte;
+      e.setAttribute("aria-label", x[0]);
+      e.title = x[0];
+      var minuteur = null;
+      e.addEventListener("input", function () {
+        clearTimeout(minuteur);
+        minuteur = setTimeout(function () { x[2](e.value === "" ? 0 : Number(e.value)); }, 700);
+      });
+      boite.appendChild(e);
+    });
+    td.appendChild(boite);
+    return td;
+  }
+
   /** Une cellule portant une seule case à cocher, étiquetée pour les lecteurs d'écran. */
   function coche(etiquette, cochee, inerte, action) {
     var td = creer("td", "coche");
@@ -1098,6 +1148,9 @@ function demarrer() {
 
   var onglets = [].slice.call(document.querySelectorAll('[role="tab"]'));
   function montrer(id) {
+    // seule la liste des invitations reclame toute la largeur disponible
+    var cadre = document.querySelector(".page");
+    if (cadre) { cadre.classList.toggle("large", id === "invitations"); }
     onglets.forEach(function (b) {
       var actif = b.id === "t-" + id;
       b.setAttribute("aria-selected", actif ? "true" : "false");
@@ -2384,11 +2437,12 @@ function demarrer() {
 
       tr.appendChild(creer("td", null, g.par || "—"));
 
-      tr.appendChild(champNombre("Nombre de personnes", g.personnes, inerte,
-        function (val) { poser(g, "personnes", val, tr); }));
-
-      tr.appendChild(champNombre("Dont moins de 15 ans", g.moins15, inerte,
-        function (val) { poser(g, "moins15", val, tr); }));
+      tr.appendChild(champPaire(
+        "Nombre de personnes", g.personnes,
+        function (val) { poser(g, "personnes", val, tr); },
+        "Dont moins de 15 ans", g.moins15,
+        function (val) { poser(g, "moins15", val, tr); },
+        inerte));
 
       // contribution
       var tdc = creer("td");
@@ -2450,10 +2504,13 @@ function demarrer() {
         }, 700);
       });
       tdr.appendChild(ir);
-      tr.appendChild(tdr);
 
       var reste = g.du - (g.recu || 0);
-      tr.appendChild(creer("td", "nombre" + (reste > 0 ? " reste-du" : ""), euros.format(reste)));
+      var sous = creer("span", "dessous" + (reste > 0 ? " reste-du" : ""),
+        reste > 0 ? "reste " + euros.format(reste) : "soldé");
+      tdr.appendChild(sous);
+
+      tr.appendChild(tdr);
 
       // retirer ou rendre
       var tdg = creer("td");
