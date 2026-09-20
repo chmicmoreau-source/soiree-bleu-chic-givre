@@ -249,6 +249,7 @@
       var su = repris("moi"), dd = repris("donnees");
       if (!su || su.email !== moi || !dd) { throw pourquoi; }
       monNom = su.nom;
+      window.givreMoi = su;
       window.DONNEES = dd;
       window.claude = {
         use: function (nom) {
@@ -265,7 +266,7 @@
       return null;
     }
 
-    return sb.from("organisateurs").select("nom").eq("email", moi)
+    return sb.from("organisateurs").select("nom,tresorier").eq("email", moi)
       .then(function (r) {
         if (r.error) { throw r.error; }
         if (!r.data || !r.data.length) {
@@ -277,7 +278,11 @@
           return null;
         }
         monNom = r.data[0].nom;
-        garder("moi", { email: moi, nom: monNom });
+        // « tresorier » vaut true pour la seule personne qui reçoit l'argent :
+        // elle seule confirme qu'un paiement est bien arrivé.
+        window.givreMoi = { email: moi, nom: monNom,
+                            tresorier: r.data[0].tresorier === true };
+        garder("moi", window.givreMoi);
         return chargerDonnees().then(function () {
           window.claude = {
             use: function (nom) {

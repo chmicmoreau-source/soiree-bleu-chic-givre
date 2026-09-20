@@ -329,6 +329,19 @@
   td input[type="text"]:disabled { opacity: .45; cursor: not-allowed; }
   td input.petit-nb { min-width: 58px; width: 58px; }
   th.milieu, td.coche { text-align: center; }
+  th.tresor, td.tresor {
+    background: rgba(79,178,134,.07);
+    box-shadow: inset 1px 0 0 rgba(79,178,134,.3), inset -1px 0 0 rgba(79,178,134,.3);
+  }
+  td.tresor input[type="checkbox"] { accent-color: #4FB286; }
+  td.tresor input[type="checkbox"]:disabled { opacity: .3; }
+  .mot-tresor {
+    margin: 0 0 14px; padding: 10px 14px; font-size: .86rem;
+    background: rgba(79,178,134,.1); border: 1px solid rgba(79,178,134,.3);
+    border-radius: var(--pas); color: var(--gris-bleu);
+  }
+  .mot-tresor b { color: var(--regle); font-weight: 600; }
+
   td.coche input[type="checkbox"] {
     width: 19px; height: 19px; cursor: pointer;
     accent-color: #4FB286;
@@ -946,6 +959,7 @@
         <button type="button" id="raz" class="geste">Tout afficher</button>
         <span class="compte" id="compte-lignes"></span>
       </div>
+      <p class="mot-tresor" id="mot-tresor"></p>
       <div class="defile">
         <table>
           <thead><tr>
@@ -958,6 +972,7 @@
             <th scope="col">Réponse</th>
             <th scope="col" class="milieu">Réglé</th>
             <th scope="col" class="droite" title="Montant reçu, et ce qui reste dû">Reçu</th>
+            <th scope="col" class="milieu tresor" title="Confirmé par celui qui reçoit les virements">Paiement reçu</th>
             <th scope="col"></th>
           </tr></thead>
           <tbody id="corps-invites"></tbody>
@@ -1173,8 +1188,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609201049"></script>
-<script src="acces.js?v=202609201049"></script>
+<script src="config.js?v=202609201656"></script>
+<script src="acces.js?v=202609201656"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2908,6 +2923,60 @@ function demarrer() {
       : "";
   }
 
+  /* ---------------- les paiements confirmés ----------------
+
+     « Reçu » dit ce que quelqu'un a annoncé. Ceci dit que l'argent est arrivé
+     sur le compte, et une seule personne peut le savoir : celle dont l'IBAN
+     figure sur l'invitation. La restriction ne tient pas à la case grisée
+     ci-dessous mais à une règle de la base : sans elle, n'importe qui
+     pourrait l'écrire par un autre chemin. */
+
+  var paiements = {};
+
+  function jeSuisTresorier() {
+    return !!(window.givreMoi && window.givreMoi.tresorier);
+  }
+
+  function chargerPaiements() {
+    if (typeof window.givreTable !== "function") { return; }
+    window.givreTable("paiements").lire("ligne,recu,quand,par").then(function (r) {
+      if (r.error) { return; }
+      var m = {};
+      (r.data || []).forEach(function (x) { m[String(x.ligne)] = x; });
+      paiements = m;
+      rendreInvites();
+      rendreArgent();
+    }).catch(function () { /* la page vit sans */ });
+  }
+
+  function paye(g) {
+    var p = paiements[String(g.cle)];
+    return !!(p && p.recu);
+  }
+
+  function poserPaiement(g, etat, tr) {
+    if (!jeSuisTresorier() || typeof window.givreTable !== "function") { return; }
+    var corps = {
+      ligne: String(g.cle), recu: etat === true,
+      montant: etat ? g.du : null,
+      quand: new Date().toISOString(),
+      par: (window.givreMoi && window.givreMoi.nom) || null
+    };
+    paiements[String(g.cle)] = corps;   // l'écran répond tout de suite
+    rendreInvites();
+    rendreArgent();
+    window.givreTable("paiements").poser([corps], "ligne").catch(function () {
+      etat2("mort", "La confirmation n'a pas pu être enregistrée.");
+    });
+  }
+
+  function etat2(classe, texte) {
+    var e = $("etat-saisie");
+    if (!e) { return; }
+    e.className = "etat-saisie" + (classe ? " " + classe : "");
+    e.textContent = texte;
+  }
+
   /* ---------------- vue « invitations » ---------------- */
 
   var ecrire = null;
@@ -3058,6 +3127,18 @@ function demarrer() {
 
       tr.appendChild(tdr);
 
+      // la confirmation du trésorier : visible par tous, cochable par lui seul
+      var tdp = coche("Paiement reçu de " + g.nom, paye(g),
+        !jeSuisTresorier() || g.retiree,
+        function (etat) { poserPaiement(g, etat, tr); });
+      tdp.className = "coche tresor";
+      if (!jeSuisTresorier()) {
+        tdp.title = paye(g)
+          ? "Confirmé par " + ((paiements[String(g.cle)] || {}).par || "le trésorier")
+          : "Seul celui qui reçoit les virements peut cocher cette case.";
+      }
+      tr.appendChild(tdp);
+
       // retirer ou rendre
       var tdg = creer("td");
       var bouton = creer("button", "geste" + (g.retiree ? " rendre" : ""), g.retiree ? "Rendre" : "Retirer");
@@ -3177,6 +3258,18 @@ function demarrer() {
     rendreCoups();
     rendreWeekend();
   }
+
+  (function () {
+    var e = $("mot-tresor");
+    if (!e) { return; }
+    e.textContent = jeSuisTresorier()
+      ? "La colonne « Paiement reçu » est à toi : coche-la quand l'argent est "
+        + "arrivé sur le compte. « Reçu » dit ce qu'on t'a annoncé, celle-ci dit "
+        + "ce qui est là."
+      : "La colonne « Paiement reçu » est confirmée par Mickaël, qui reçoit les "
+        + "virements. Tu la vois pour savoir qui ne pas relancer, mais elle ne "
+        + "se coche que de son côté.";
+  })();
 
   $("arrete").textContent = D.arrete;
   (function () {
@@ -3473,6 +3566,7 @@ function demarrer() {
       })();
 
       chargerHoraires();
+      chargerPaiements();
 
       $("mot-saisie").textContent = " Les invitations ajoutées, les contributions, les réponses "
         + "et les règlements saisis ici sont partagés entre organisateurs, et reversés dans le "
