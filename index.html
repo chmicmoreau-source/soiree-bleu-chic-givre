@@ -128,7 +128,12 @@
 
   h2 { font-family: var(--serif); font-weight: 600; font-size: 1.55rem; color: var(--givre); margin: 0 0 6px; }
   section { margin-bottom: 42px; }
-  .chapeau { margin: 0 0 20px; color: var(--gris-bleu); font-size: .93rem; max-width: 64ch; }
+  /* Les chapeaux prennent la largeur de leur bloc. La mesure de lecture
+     classique — 64 caractères — laissait la moitié de la page vide sur un
+     écran d'ordinateur. Seul l'onglet des invitations, qui s'étale jusqu'à
+     1560px, garde un plafond : au-delà, l'œil perd la ligne en revenant. */
+  .chapeau { margin: 0 0 20px; color: var(--gris-bleu); font-size: .93rem; }
+  .page.large .chapeau { max-width: 108ch; }
   .chapeau b { color: var(--blanc); font-weight: 600; }
   .chapeau .chiffre { font-family: var(--mono); color: var(--argent); }
 
@@ -1028,8 +1033,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200750"></script>
-<script src="acces.js?v=202609200750"></script>
+<script src="config.js?v=202609200753"></script>
+<script src="acces.js?v=202609200753"></script>
 <script>
 function demarrer() {
   "use strict";
