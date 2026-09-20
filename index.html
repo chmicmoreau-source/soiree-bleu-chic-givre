@@ -537,6 +537,16 @@
   .pastille.ouvert { color: var(--du); background: rgba(217,164,65,.14); border: 1px solid rgba(217,164,65,.45); }
   .pastille.tranche { color: var(--regle); background: rgba(79,178,134,.14); border: 1px solid rgba(79,178,134,.45); }
   .qui-suit { font-family: var(--mono); font-size: .75rem; color: var(--median); }
+  .roles {
+    display: block; margin-top: 7px;
+    font-family: var(--mono); font-size: .74rem; letter-spacing: .03em;
+    color: var(--median);
+  }
+  .roles b { color: var(--argent); font-weight: 600; }
+  .roles b.commune { color: var(--duo-clair); }
+  .roles:empty { display: none; }
+  .duo-sel { display: flex; gap: 6px; flex-wrap: wrap; }
+  .gestes select.champ { width: auto; max-width: 190px; }
   .bascule { display: inline-flex; }
   .bascule button {
     appearance: none; cursor: pointer; background: var(--nuit); color: var(--gris-bleu);
@@ -988,8 +998,11 @@
         <input type="text" class="champ" id="on-titre" placeholder="Le transport du matériel" required>
         <span class="etiq">De quoi il s'agit</span>
         <textarea class="champ" id="on-detail" placeholder="Ce qu'il faut savoir pour décider"></textarea>
-        <span class="etiq">Qui s'en occupe</span>
-        <select class="champ" id="on-par"></select>
+        <span class="etiq">Qui décide, et qui s'en occupe</span>
+        <div class="duo-sel">
+          <select class="champ" id="on-decide" aria-label="Qui décide"></select>
+          <select class="champ" id="on-charge" aria-label="Qui s'en occupe"></select>
+        </div>
         <div class="gestes">
           <button type="submit" class="mini vert" id="on-ok" disabled>Ajouter le point</button>
         </div>
@@ -1015,8 +1028,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200748"></script>
-<script src="acces.js?v=202609200748"></script>
+<script src="config.js?v=202609200750"></script>
+<script src="acces.js?v=202609200750"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1311,7 +1324,12 @@ function demarrer() {
       neufs.push(fondre({ id: id, titre: "", detail: "" }, ouverts[id]));
     });
     neufs.sort(function (a, b) { return (a.cree || "").localeCompare(b.cree || ""); });
-    return out.concat(neufs);
+    return out.concat(neufs).map(function (o) {
+      // avant la séparation des deux rôles, « par » désignait celui qui s'en
+      // occupait : on le relit comme tel plutôt que de perdre l'information
+      if (!o.charge && o.par) { o.charge = o.par; }
+      return o;
+    });
   }
 
   /** Enregistre l'etat complet d'un repere : un document se suffit a lui-meme,
@@ -1330,7 +1348,12 @@ function demarrer() {
     if (!ecrireWk) { return; }
     var corps = {
       titre: o.titre || "", detail: o.detail || "", tranche: o.tranche === true,
-      decision: o.decision || "", par: o.par || "", retire: o.retire === true,
+      decision: o.decision || "",
+      // qui tranche, et qui exécute : deux rôles, souvent deux personnes
+      decide: o.decide || "", charge: o.charge || "",
+      // « par » reste écrit pour les pages d'avant, qui ne connaissent que lui
+      par: o.charge || o.par || "",
+      retire: o.retire === true,
       cree: (ouverts[o.id] && ouverts[o.id].cree) || null
     };
     ouverts[o.id] = corps;
@@ -1396,11 +1419,19 @@ function demarrer() {
   function etiquette(texte) { return creer("span", "etiq", texte); }
 
   /** La meme liste d'organisateurs que dans l'onglet des invitations. */
-  function remplirOrganisateurs(sel, choisi, vide) {
+  function remplirOrganisateurs(sel, choisi, vide, tete) {
     sel.textContent = "";
     var o0 = creer("option", "", vide);
     o0.value = "";
     sel.appendChild(o0);
+    // « tete » ajoute une entrée avant les noms : la décision commune, qui
+    // n'est celle de personne en particulier.
+    if (tete) {
+      var ot = creer("option", "", tete[1]);
+      ot.value = tete[0];
+      if (tete[0] === choisi) { ot.selected = true; }
+      sel.appendChild(ot);
+    }
     var vus = {};
     D.invites.forEach(function (g) { if (g.par) { vus[g.par] = 1; } });
     Object.keys(vus).sort().forEach(function (n) {
@@ -1520,6 +1551,21 @@ function demarrer() {
       li.appendChild(creer("span", "titre", o.titre || "Point sans intitulé"));
       if (o.detail) { li.appendChild(creer("span", "note", o.detail)); }
 
+      var roles = creer("span", "roles");
+      if (o.decide === "commune") {
+        roles.appendChild(document.createTextNode("tranché "));
+        roles.appendChild(creer("b", "commune", "en commun"));
+      } else if (o.decide) {
+        roles.appendChild(document.createTextNode("tranché par "));
+        roles.appendChild(creer("b", null, o.decide));
+      }
+      if (o.charge) {
+        roles.appendChild(document.createTextNode(
+          roles.textContent ? " · suivi par " : "suivi par "));
+        roles.appendChild(creer("b", null, o.charge));
+      }
+      li.appendChild(roles);
+
       if (!o.retire) {
         li.appendChild(etiquette(o.tranche ? "Ce qui a été décidé"
                                            : "La décision, dès qu'elle est prise"));
@@ -1553,16 +1599,30 @@ function demarrer() {
         });
         g.appendChild(bas);
 
-        var sel = document.createElement("select");
-        sel.className = "champ";
-        sel.style.width = "auto";
-        sel.disabled = !ecrireWk;
-        sel.setAttribute("aria-label", "Qui s'en occupe");
-        remplirOrganisateurs(sel, o.par, "Qui s'en occupe…");
-        sel.addEventListener("change", function () {
-          o.par = sel.value; poserOuvert(o, li);
+        var duo = creer("div", "duo-sel");
+
+        var sd = document.createElement("select");
+        sd.className = "champ";
+        sd.disabled = !ecrireWk;
+        sd.setAttribute("aria-label", "Qui décide");
+        remplirOrganisateurs(sd, o.decide, "Qui décide…",
+                             ["commune", "Décision commune"]);
+        sd.addEventListener("change", function () {
+          o.decide = sd.value; poserOuvert(o, li);
         });
-        g.appendChild(sel);
+        duo.appendChild(sd);
+
+        var sc = document.createElement("select");
+        sc.className = "champ";
+        sc.disabled = !ecrireWk;
+        sc.setAttribute("aria-label", "Qui s'en occupe");
+        remplirOrganisateurs(sc, o.charge, "Qui s'en occupe…");
+        sc.addEventListener("change", function () {
+          o.charge = sc.value; poserOuvert(o, li);
+        });
+        duo.appendChild(sc);
+
+        g.appendChild(duo);
 
         g.appendChild(boutonMini("Modifier", "", function () {
           editOuvert = o.id; rendreOuverts();
@@ -2628,7 +2688,9 @@ function demarrer() {
       o.value = n; o.textContent = n;
       sel.appendChild(o);
     });
-    remplirOrganisateurs($("on-par"), "", "Qui s'en occupe…");
+    remplirOrganisateurs($("on-decide"), "", "Qui décide…",
+                         ["commune", "Décision commune"]);
+    remplirOrganisateurs($("on-charge"), "", "Qui s'en occupe…");
     var sa = $("a-par");
     var vide = document.createElement("option");
     vide.value = ""; vide.textContent = "Invité par…";
@@ -2838,7 +2900,9 @@ function demarrer() {
       });
 
       (function () {
-        remplirOrganisateurs($("on-par"), "", "Qui s'en occupe\u2026");
+        remplirOrganisateurs($("on-decide"), "", "Qui d\u00e9cide\u2026",
+                             ["commune", "D\u00e9cision commune"]);
+        remplirOrganisateurs($("on-charge"), "", "Qui s'en occupe\u2026");
 
         var fj = $("jalon-neuf"), bj = $("jn-ok");
         bj.disabled = false;
@@ -2869,9 +2933,12 @@ function demarrer() {
           bo.disabled = true;
           ajouterWk("ouverts", {
             titre: titre, detail: $("on-detail").value.trim(),
-            tranche: false, decision: "", par: $("on-par").value || "", retire: false
+            tranche: false, decision: "",
+            decide: $("on-decide").value || "", charge: $("on-charge").value || "",
+            par: $("on-charge").value || "", retire: false
           }).then(function () {
-            $("on-titre").value = ""; $("on-detail").value = ""; $("on-par").value = "";
+            $("on-titre").value = ""; $("on-detail").value = "";
+            $("on-decide").value = ""; $("on-charge").value = "";
             $("on-titre").focus();
             etat("vivant", "Point ajout\u00e9 \u2014 il appara\u00eet aussi chez les autres.");
           }).catch(function () {
