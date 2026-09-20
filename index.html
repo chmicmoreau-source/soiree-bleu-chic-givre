@@ -908,8 +908,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200644"></script>
-<script src="acces.js?v=202609200644"></script>
+<script src="config.js?v=202609200650"></script>
+<script src="acces.js?v=202609200650"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2330,8 +2330,11 @@ function demarrer() {
         snap.docs.forEach(function (d) {
           var c = d.data() || {};
           var e = {};
-          if (c.contribution !== undefined && c.contribution !== null) { e.contribution = c.contribution; }
-          else if (c.contribution === null) { e.contribution = ""; }
+          // « null » veut dire « personne n'y a touché », et doit laisser
+          // parler le classeur. Seule une chaîne est une décision : « Salé »,
+          // ou « » quand on vide volontairement la case. Confondre les deux
+          // effaçait la contribution dès qu'on cochait une case voisine.
+          if (typeof c.contribution === "string") { e.contribution = c.contribution; }
           if (c.statut) { e.statut = c.statut; }
           if (typeof c.recu === "number") { e.recu = c.recu; }
           if (typeof c.nom === "string") { e.nom = c.nom; }
