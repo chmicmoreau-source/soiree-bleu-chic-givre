@@ -4,6 +4,6 @@
    La clé « service_role », elle, ne doit JAMAIS figurer ici — elle ne sert
    qu'au script de reversement, sur le poste de Mickaël. */
 window.CONFIG = {
-  url: "A_REMPLIR",   // https://xxxxxxxxxxxx.supabase.co
-  cle: "A_REMPLIR"    // la clé « anon public »
+  url: "https://klwbvyhovhbxmvzmxkyh.supabase.co",   // https://xxxxxxxxxxxx.supabase.co
+  cle: "sb_publishable_Eims3h2g-JVwIXjlwW2HgQ_wz3-G64a"    // la clé « anon public »
 };
