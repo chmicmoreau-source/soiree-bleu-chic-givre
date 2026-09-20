@@ -80,6 +80,17 @@
   .porte-mot.raté { color: var(--alerte); }
   #porte-attente[hidden], #porte-refus[hidden], #porte-forme[hidden] { display: none; }
 
+  .retour {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; margin-bottom: 10px;
+    background: rgba(220,236,250,.1); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.34); border-radius: 999px;
+    font-size: .82rem; text-decoration: none; white-space: nowrap;
+  }
+  .retour:hover { background: rgba(220,236,250,.2); }
+  .retour:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
+  .retour[hidden] { display: none; }
+
   /* ---------------- l'en-tête ---------------- */
   header {
     padding: calc(28px + env(safe-area-inset-top)) 0 22px;
@@ -219,6 +230,7 @@
 
 <div class="feuille">
   <header>
+    <a class="retour" id="retour" href="index.html" hidden>&larr; Accueil</a>
     <p class="theme">Bleu, Chic &amp; Givré</p>
     <h1 id="salut">Ma mission</h1>
     <p class="quand">Samedi <b>19 décembre 2026</b> · Salle des fêtes, Le Passage</p>
@@ -244,7 +256,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200845"></script>
+<script src="config.js?v=202609201010"></script>
 <script>
 /* Cette page ne passe pas par « acces.js ».
 
@@ -425,6 +437,12 @@
       $("salut").textContent = prenom ? ("Bonjour " + prenom) : "Ma mission";
       $("moi-nom").textContent = moi;
       $("moi").hidden = false;
+
+      // l'accueil n'est ouvert qu'aux organisateurs : ne le proposer qu'à eux
+      sb.from("organisateurs").select("nom").eq("email", moi)
+        .then(function (o) {
+          if (!o.error && o.data && o.data.length) { $("retour").hidden = false; }
+        }).catch(function () { /* dans le doute, on ne propose rien */ });
       $("porte").hidden = true;
 
       afficher(miennes, equipe, infos);
