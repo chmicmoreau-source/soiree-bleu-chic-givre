@@ -304,6 +304,27 @@
   td.coche input[type="checkbox"]:disabled { cursor: not-allowed; opacity: .4; }
   td.coche input:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
 
+  /* ---------- le plafond par personne ---------- */
+  .plafond {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    padding: 12px 16px; margin-bottom: 12px;
+    background: rgba(99,127,166,.1);
+    border: 1px solid rgba(99,127,166,.26); border-radius: var(--pas);
+    font-size: .87rem; color: var(--gris-bleu);
+  }
+  .plafond label { flex: 1 1 260px; }
+  .plafond input[type="range"] {
+    flex: 0 1 190px; accent-color: #DCECFA; cursor: pointer;
+  }
+  .plafond input[type="range"]:focus-visible { outline: 2px solid var(--givre); outline-offset: 3px; }
+  .plafond output {
+    font-family: var(--mono); font-size: .95rem; font-weight: 600;
+    color: var(--argent); min-width: 48px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .plafond .prix { flex: 1 1 100%; font-size: .83rem; color: var(--median); }
+  .plafond .prix:empty { display: none; }
+
   /* ---------- l'etat vivant du plan ---------- */
   .plan-etat {
     display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
@@ -848,6 +869,14 @@
         <div class="panneau large">
           <h3>Comment rétablir l'équilibre</h3>
           <p class="sous" id="plan-sous">&mdash;</p>
+          <div class="plafond">
+            <label for="plafond">Part maximale d'une même contribution chez une seule
+              personne</label>
+            <input type="range" id="plafond" min="40" max="100" step="5" value="60"
+                   aria-describedby="plafond-prix">
+            <output id="plafond-val" for="plafond">60&nbsp;%</output>
+            <span class="prix" id="plafond-prix"></span>
+          </div>
           <div class="plan-etat" id="plan-etat"></div>
           <ul class="plan" id="plan-buffet"></ul>
           <p class="plan-bilan" id="plan-bilan"></p>
@@ -961,8 +990,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200703"></script>
-<script src="acces.js?v=202609200703"></script>
+<script src="config.js?v=202609200709"></script>
+<script src="acces.js?v=202609200709"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1750,11 +1779,22 @@ function demarrer() {
       demander a quelqu'un de changer une contribution deja annoncee. C'est le
       geste couteux, donc le dernier, et il revient a ceux qui sont le plus
       au-dessus de leur propre part. */
+  /* Le plafond : au-dela de cette part de ses propres invitations, on ne
+     demande plus la meme contribution a la meme personne. Sans lui, le calcul
+     donnait les dix-sept invitations libres d'Emilie en specialite -- juste
+     arithmetiquement, intenable en pratique. A 100 % le plafond ne joue plus
+     et l'on retrouve le plan le plus court. */
+  function partPlafond() {
+    var r = $("plafond");
+    return (r ? Number(r.value) : 60) / 100;
+  }
+
   var dernierPlan = null;     // nombre de gestes au dernier calcul
   var dernieresCartes = {};   // ce que chacun avait a faire, pour signaler un changement
 
   function rendrePlan(v) {
     var total = v.length;
+    var plafond = partPlafond();
     var cible = ciblesEntieres(total, D.parts);
     var actuel = { "Sal\u00e9": 0, "Sucr\u00e9": 0, "Sp\u00e9cialit\u00e9": 0 };
     var parQui = {};
@@ -1785,15 +1825,26 @@ function demarrer() {
     porteurs.sort(function (a, b) { return parQui[b].sans - parQui[a].sans; });
     porteurs.forEach(function (q) {
       var d = parQui[q];
+      var mur = Math.max(1, Math.ceil(d.tot * plafond));
       for (var i = 0; i < d.sans; i++) {
-        var choix = CONTRIBUTIONS[0], mieux = -Infinity;
+        var choix = null, mieux = -Infinity;
         CONTRIBUTIONS.forEach(function (n) {
+          // au-dela du plafond, cette contribution n'est plus proposable a
+          // cette personne, si serree que soit la cible collective
+          if (d[n] + (d.recoit[n] || 0) >= mur) { return; }
           // le besoin collectif tranche ; a besoin egal, celui qui en manque
           // le plus dans son propre lot sert de departage
           var sien = (cible[n] / total) * d.tot - d[n] - (d.recoit[n] || 0);
           var note = besoin[n] * 1000 + sien;
           if (note > mieux) { mieux = note; choix = n; }
         });
+        if (choix === null) {      // tout est au plafond : on le desserre
+          CONTRIBUTIONS.forEach(function (n) {
+            var sien = (cible[n] / total) * d.tot - d[n] - (d.recoit[n] || 0);
+            var note = besoin[n] * 1000 + sien;
+            if (note > mieux) { mieux = note; choix = n; }
+          });
+        }
         d.recoit[choix] = (d.recoit[choix] || 0) + 1;
         if (besoin[choix] > 0) { besoin[choix] -= 1; }
         apres[choix] += 1;
@@ -1827,18 +1878,32 @@ function demarrer() {
         var aEux = d[b.de] + (d.recoit[b.de] || 0);
         return { q: q, dispo: aEux, surplus: aEux - (cible[b.de] / total) * d.tot };
       }).filter(function (x) { return x.dispo > 0; });
-      cands.sort(function (a, c) { return c.surplus - a.surplus; });
+      // celui qui deborderait sur la contribution d'arrivee passe en dernier
+      cands.forEach(function (c) {
+        var d = parQui[c.q];
+        var mur = Math.max(1, Math.ceil(d.tot * plafond));
+        c.place = mur - (d[b.vers] + (d.recoit[b.vers] || 0));
+      });
+      cands.sort(function (a, c) {
+        if ((a.place > 0) !== (c.place > 0)) { return a.place > 0 ? -1 : 1; }
+        return c.surplus - a.surplus;
+      });
 
       var reste = b.q;
       var pose = function (c, combien) {
         if (combien <= 0) { return; }
         parQui[c.q].bascule.push({ de: b.de, vers: b.vers, q: combien });
         c.dispo -= combien;
+        if (typeof c.place === "number") { c.place -= combien; }
         reste -= combien;
       };
       cands.forEach(function (c) {
         if (reste <= 0 || c.surplus <= 0) { return; }
-        pose(c, Math.min(reste, c.dispo, Math.round(c.surplus)));
+        pose(c, Math.min(reste, c.dispo, Math.max(0, c.place), Math.round(c.surplus)));
+      });
+      cands.forEach(function (c) {
+        if (reste <= 0 || c.place <= 0) { return; }
+        pose(c, Math.min(reste, c.dispo, c.place));
       });
       cands.forEach(function (c) {          // si le surplus n'a pas suffi
         if (reste <= 0) { return; }
@@ -1877,6 +1942,15 @@ function demarrer() {
       puces.appendChild(l);
     }
     etat.appendChild(puces);
+
+    $("plafond-val").textContent = Math.round(plafond * 100) + "\u00a0%";
+    var prix = $("plafond-prix");
+    prix.textContent = plafond >= 1
+      ? "Aucun plafond : le plan est le plus court possible, quitte \u00e0 demander "
+        + "la m\u00eame chose \u00e0 tout le monde chez la m\u00eame personne."
+      : "Personne ne se voit demander la m\u00eame contribution pour plus de "
+        + Math.round(plafond * 100) + "\u00a0% de ses invitations. Desserrer ce "
+        + "plafond raccourcit le plan ; le serrer le rend plus tenable.";
 
     if (dernierPlan !== null && dernierPlan !== gestesTotal) {
       void etat.offsetWidth;
@@ -2419,6 +2493,21 @@ function demarrer() {
     rendreTout();
     if (ecrire) { ecrire(g, s, tr); }
   }
+
+  (function () {
+    var r = $("plafond");
+    if (!r) { return; }
+    // un confort propre a chaque navigateur : rien d'essentiel n'y dort, et
+    // l'absence de stockage ne doit pas empecher la page de fonctionner
+    try {
+      var garde = window.localStorage.getItem("givre-plafond");
+      if (garde) { r.value = garde; }
+    } catch (e) { /* navigation privee, stockage bloque */ }
+    r.addEventListener("input", function () {
+      try { window.localStorage.setItem("givre-plafond", r.value); } catch (e2) { /* tant pis */ }
+      rendreBuffet();
+    });
+  })();
 
   ["recherche", "filtre-par", "filtre-contrib", "filtre-etat", "tri", "tri2"].forEach(function (id) {
     $(id).addEventListener("input", rendreInvites);
