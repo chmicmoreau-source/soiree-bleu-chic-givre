@@ -383,6 +383,60 @@
   .plan-etat.bouge { animation: flash 1.2s ease-out; }
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
+  /* ---------- les coups de main ---------- */
+  .coups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+  .coup {
+    padding: 13px 15px; background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.28); border-left: 2px solid var(--duo-clair);
+    border-radius: var(--pas);
+  }
+  .coup.vide { border-left-color: var(--du); }
+  .coup h4 {
+    margin: 0 0 3px; font-family: var(--sans); font-size: .95rem;
+    font-weight: 600; color: var(--blanc);
+  }
+  .coup .combien {
+    display: block; font-family: var(--mono); font-size: .74rem;
+    color: var(--median); margin-bottom: 9px;
+  }
+  .coup ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+  .coup li {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: .88rem; color: var(--gris-bleu);
+  }
+  .coup li b { color: var(--argent); font-weight: 600; }
+  .coup li .nomfoyer { font-family: var(--mono); font-size: .72rem; color: var(--median); }
+  .coup .personne { display: block; }
+  .coup .rien { color: var(--du); font-style: italic; font-size: .86rem; }
+  .coup .oter {
+    appearance: none; cursor: pointer; background: none; border: none;
+    color: var(--median); font-size: 1rem; line-height: 1; padding: 0 3px;
+  }
+  .coup .oter:hover { color: var(--alerte); }
+  .coup .oter:disabled { opacity: .35; cursor: not-allowed; }
+
+  .recrue {
+    display: flex; gap: 9px; flex-wrap: wrap; align-items: center;
+    padding: 14px 16px; margin-bottom: 16px;
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.3);
+    border-left: 2px solid var(--regle); border-radius: var(--pas);
+  }
+  .recrue select, .recrue button {
+    appearance: none;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 8px 11px; font-family: var(--sans); font-size: .88rem;
+  }
+  .recrue #r-foyer { flex: 2 1 220px; min-width: 170px; }
+  .recrue #r-qui { flex: 1 1 140px; }
+  .recrue #r-role { flex: 2 1 200px; }
+  .recrue button {
+    cursor: pointer; background: rgba(79,178,134,.16); color: var(--regle);
+    border-color: rgba(79,178,134,.5); font-weight: 600;
+  }
+  .recrue button:hover { background: rgba(79,178,134,.26); }
+  .recrue button:disabled { opacity: .4; cursor: not-allowed; }
+
   /* ---------- plan de rattrapage du buffet ---------- */
   .plan { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
   .plan li {
@@ -888,6 +942,22 @@
         </table>
       </div>
     </section>
+
+    <section>
+      <h2>Les coups de main</h2>
+      <p class="chapeau">
+        Qui donne un coup de main, et pour quoi. Le rôle vise une personne
+        précise du foyer, pas l'invitation entière : c'est Rachel qui range,
+        pas « les BLANC-MASSIT ».
+      </p>
+      <div class="recrue">
+        <select id="r-foyer" aria-label="Quelle invitation"></select>
+        <select id="r-qui" aria-label="Quelle personne du foyer"></select>
+        <select id="r-role" aria-label="Quel rôle"></select>
+        <button type="button" id="r-ok" disabled>Noter ce coup de main</button>
+      </div>
+      <div class="coups" id="coups"></div>
+    </section>
   </div>
 
   <div class="volet" role="tabpanel" id="v-buffet" aria-labelledby="t-buffet" hidden>
@@ -1080,8 +1150,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200812"></script>
-<script src="acces.js?v=202609200812"></script>
+<script src="config.js?v=202609200819"></script>
+<script src="acces.js?v=202609200819"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1847,6 +1917,8 @@ function demarrer() {
       moins15: moins15,
       du: Math.max(0, personnes - enfants) * TA + enfants * TE,
       contribution: s.hasOwnProperty("contribution") ? s.contribution : g.contribution,
+      role: s.hasOwnProperty("role") ? s.role : (g.role || ""),
+      benevole: s.hasOwnProperty("benevole") ? s.benevole : (g.benevole || ""),
       statut: s.statut || g.statut,
       recu: s.hasOwnProperty("recu") ? s.recu : g.recu,
       retiree: s.retiree === true,
@@ -1868,6 +1940,7 @@ function demarrer() {
       personnes: personnes, moins15: moins15,
       du: Math.max(0, personnes - enfants) * TA + enfants * TE,
       contribution: a.contribution || null,
+      role: a.role || "", benevole: a.benevole || "",
       statut: a.statut || "En attente",
       recu: typeof a.recu === "number" ? a.recu : 0,
       retiree: a.retiree === true,
@@ -2041,6 +2114,145 @@ function demarrer() {
     empiler("statuts", "statuts-legende", REPONSES.map(function (r) {
       return { nom: r.mot, n: parStatut[r.code] || 0, couleur: TEINTE_STATUT[r.code] };
     }));
+  }
+
+  /* ---------------- les coups de main ---------------- */
+
+  function lesRoles() { return (D.roles && D.roles.length) ? D.roles : []; }
+
+  /** Les prénoms d'une invitation, tels qu'ils sont saisis. */
+  function prenomsDe(g) {
+    return (g.prenoms || "").split(",")
+      .map(function (x) { return x.trim(); })
+      .filter(function (x) { return x !== ""; });
+  }
+
+  function rendreCoups() {
+    var roles = lesRoles();
+    var boite = $("coups");
+    if (!boite) { return; }
+
+    var v = vivants();
+    var par = {};
+    roles.forEach(function (r) { par[r] = []; });
+    var hors = [];        // un rôle qui ne figure plus dans Paramètres
+    v.forEach(function (g) {
+      if (!g.role) { return; }
+      var qui = g.benevole || prenomsDe(g)[0] || "quelqu'un";
+      var fiche = { g: g, qui: qui };
+      if (par[g.role]) { par[g.role].push(fiche); } else { hors.push(fiche); }
+    });
+
+    boite.textContent = "";
+    roles.forEach(function (r) {
+      var gens = par[r];
+      var carte = creer("div", "coup" + (gens.length ? "" : " vide"));
+      carte.appendChild(creer("h4", null, r));
+      carte.appendChild(creer("span", "combien",
+        gens.length ? accorde(gens.length, "personne", "personnes") : "personne pour l'instant"));
+
+      if (!gens.length) {
+        carte.appendChild(creer("p", "rien", "Il n'y a encore personne."));
+      } else {
+        var ul = creer("ul");
+        gens.sort(function (a, b) {
+          return a.qui.localeCompare(b.qui, "fr", { sensitivity: "base" });
+        });
+        gens.forEach(function (x) {
+          var li = creer("li");
+          var bloc = creer("span", "personne");
+          bloc.appendChild(creer("b", null, x.qui));
+          bloc.appendChild(creer("span", "nomfoyer", " " + (x.g.nom || "")));
+          li.appendChild(bloc);
+
+          var oter = creer("button", "oter", "×");
+          oter.type = "button";
+          oter.title = "Retirer ce coup de main";
+          oter.setAttribute("aria-label", "Retirer " + x.qui + " de « " + r + " »");
+          oter.disabled = !ecrire;
+          oter.addEventListener("click", function () {
+            poser(x.g, "role", "", null, { benevole: "" });
+          });
+          li.appendChild(oter);
+          ul.appendChild(li);
+        });
+        carte.appendChild(ul);
+      }
+      boite.appendChild(carte);
+    });
+
+    if (hors.length) {
+      var c = creer("div", "coup vide");
+      c.appendChild(creer("h4", null, "Rôles inconnus"));
+      c.appendChild(creer("span", "combien",
+        accorde(hors.length, "personne", "personnes") + " — ce rôle n'est plus dans Paramètres"));
+      var ul2 = creer("ul");
+      hors.forEach(function (x) {
+        var li = creer("li");
+        li.appendChild(creer("b", null, x.qui + " — " + x.g.role));
+        ul2.appendChild(li);
+      });
+      c.appendChild(ul2);
+      boite.appendChild(c);
+    }
+
+    majRecrue();
+  }
+
+  /** Le formulaire : une invitation, une personne de ce foyer, un rôle. */
+  function majRecrue() {
+    var sf = $("r-foyer"), sq = $("r-qui"), sr = $("r-role"), ok = $("r-ok");
+    if (!sf) { return; }
+
+    var garde = sf.value;
+    var v = vivants().slice().sort(function (a, b) {
+      return (a.nom || "").localeCompare(b.nom || "", "fr", { sensitivity: "base" });
+    });
+    sf.textContent = "";
+    var vide = creer("option", "", "Quelle invitation…");
+    vide.value = "";
+    sf.appendChild(vide);
+    v.forEach(function (g) {
+      var o = creer("option", "", (g.nom || "sans nom")
+        + (g.prenoms ? " — " + g.prenoms : ""));
+      o.value = g.cle;
+      sf.appendChild(o);
+    });
+    if (garde) { sf.value = garde; }
+
+    if (!sr.options.length) {
+      var v0 = creer("option", "", "Quel rôle…");
+      v0.value = "";
+      sr.appendChild(v0);
+      lesRoles().forEach(function (r) {
+        var o = creer("option", "", r);
+        o.value = r;
+        sr.appendChild(o);
+      });
+    }
+
+    var choisi = null;
+    vivants().forEach(function (g) { if (g.cle === sf.value) { choisi = g; } });
+    sq.textContent = "";
+    if (choisi) {
+      var noms = prenomsDe(choisi);
+      if (!noms.length) { noms = ["(prénom non saisi)"]; }
+      noms.forEach(function (n) {
+        var o = creer("option", "", n);
+        o.value = n;
+        if (n === choisi.benevole) { o.selected = true; }
+        sq.appendChild(o);
+      });
+    } else {
+      var o0 = creer("option", "", "—");
+      o0.value = "";
+      sq.appendChild(o0);
+    }
+
+    sf.disabled = !ecrire;
+    sq.disabled = !ecrire || !choisi;
+    sr.disabled = !ecrire;
+    ok.disabled = !ecrire || !choisi || !sr.value;
   }
 
   /* ---------------- vue « buffet » ---------------- */
@@ -2815,6 +3027,22 @@ function demarrer() {
     });
   })();
 
+  (function () {
+    var sf = $("r-foyer"), sr = $("r-role"), ok = $("r-ok");
+    if (!sf) { return; }
+    sf.addEventListener("change", majRecrue);
+    sr.addEventListener("change", majRecrue);
+    ok.addEventListener("click", function () {
+      var choisi = null;
+      vivants().forEach(function (g) { if (g.cle === sf.value) { choisi = g; } });
+      if (!choisi || !sr.value) { return; }
+      var qui = $("r-qui").value;
+      poser(choisi, "role", sr.value, null, { benevole: qui === "(prénom non saisi)" ? "" : qui });
+      sf.value = ""; sr.value = "";
+      majRecrue();
+    });
+  })();
+
   ["recherche", "filtre-par", "filtre-contrib", "filtre-etat", "tri", "tri2"].forEach(function (id) {
     $(id).addEventListener("input", rendreInvites);
   });
@@ -2844,6 +3072,7 @@ function demarrer() {
     rendreBuffet();
     rendreArgent();
     rendreInvites();
+    rendreCoups();
     rendreWeekend();
   }
 
@@ -2932,10 +3161,14 @@ function demarrer() {
               personnes: o.personnes === undefined ? null : o.personnes,
               moins15: o.moins15 === undefined ? null : o.moins15,
               contribution: o.contribution === undefined ? null : o.contribution,
+              role: o.role === undefined ? null : o.role,
+              benevole: o.benevole === undefined ? null : o.benevole,
               statut: o.statut === undefined ? null : o.statut,
               recu: o.recu === undefined ? null : o.recu
             },
             contribution: aEcrire.contribution === undefined ? null : aEcrire.contribution,
+            role: aEcrire.role === undefined ? null : aEcrire.role,
+            benevole: aEcrire.benevole === undefined ? null : aEcrire.benevole,
             statut: aEcrire.statut === undefined ? null : aEcrire.statut,
             recu: aEcrire.recu === undefined ? null : aEcrire.recu,
             nom: aEcrire.nom === undefined ? null : aEcrire.nom,
@@ -3034,6 +3267,8 @@ function demarrer() {
           // ou « » quand on vide volontairement la case. Confondre les deux
           // effaçait la contribution dès qu'on cochait une case voisine.
           if (typeof c.contribution === "string") { e.contribution = c.contribution; }
+          if (typeof c.role === "string") { e.role = c.role; }
+          if (typeof c.benevole === "string") { e.benevole = c.benevole; }
           if (c.statut) { e.statut = c.statut; }
           if (typeof c.recu === "number") { e.recu = c.recu; }
           if (typeof c.nom === "string") { e.nom = c.nom; }
@@ -3070,6 +3305,7 @@ function demarrer() {
           contribution: null,
           statut: "En attente",
           recu: 0,
+          role: "", benevole: "",
           envoyee: false,
           retiree: false,
           quand: new Date().toISOString()
