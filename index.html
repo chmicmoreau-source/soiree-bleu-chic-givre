@@ -384,6 +384,28 @@
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
   /* ---------- les coups de main ---------- */
+  .coup .horaire { display: grid; gap: 5px; margin: 10px 0 12px; }
+  .coup .horaire .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .coup .horaire input, .coup .horaire textarea {
+    width: 100%; background: rgba(0,12,60,.6); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.3); border-radius: 3px;
+    padding: 5px 8px; font-family: var(--sans); font-size: .82rem;
+  }
+  .coup .horaire textarea { resize: vertical; min-height: 44px; line-height: 1.5; }
+  .coup .horaire input:focus-visible, .coup .horaire textarea:focus-visible {
+    outline: 2px solid var(--givre);
+  }
+  .coup li .mail {
+    width: 100%; margin-top: 2px;
+    background: rgba(0,12,60,.5); color: var(--gris-bleu);
+    border: 1px solid rgba(99,127,166,.28); border-radius: 3px;
+    padding: 3px 7px; font-family: var(--mono); font-size: .72rem;
+  }
+  .coup li .mail:focus-visible { outline: 2px solid var(--givre); color: var(--blanc); }
+  .coup li .mail.manquant { border-color: rgba(217,164,65,.5); color: var(--du); }
+  .coup li { flex-wrap: wrap; }
+  .coup li .personne { flex: 1 1 auto; }
+
   .coups { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
   .coup {
     padding: 13px 15px; background: var(--nuit-clair);
@@ -1150,8 +1172,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200819"></script>
-<script src="acces.js?v=202609200819"></script>
+<script src="config.js?v=202609200845"></script>
+<script src="acces.js?v=202609200845"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1919,6 +1941,7 @@ function demarrer() {
       contribution: s.hasOwnProperty("contribution") ? s.contribution : g.contribution,
       role: s.hasOwnProperty("role") ? s.role : (g.role || ""),
       benevole: s.hasOwnProperty("benevole") ? s.benevole : (g.benevole || ""),
+      mail: s.hasOwnProperty("mail") ? s.mail : (g.mail || ""),
       statut: s.statut || g.statut,
       recu: s.hasOwnProperty("recu") ? s.recu : g.recu,
       retiree: s.retiree === true,
@@ -1940,7 +1963,7 @@ function demarrer() {
       personnes: personnes, moins15: moins15,
       du: Math.max(0, personnes - enfants) * TA + enfants * TE,
       contribution: a.contribution || null,
-      role: a.role || "", benevole: a.benevole || "",
+      role: a.role || "", benevole: a.benevole || "", mail: a.mail || "",
       statut: a.statut || "En attente",
       recu: typeof a.recu === "number" ? a.recu : 0,
       retiree: a.retiree === true,
@@ -2120,6 +2143,53 @@ function demarrer() {
 
   function lesRoles() { return (D.roles && D.roles.length) ? D.roles : []; }
 
+  /* L'horaire de chaque rôle vit dans sa propre table, « roles_infos », et
+     non dans « docs ». C'est ce qui permet à un volontaire de le lire sans
+     avoir accès à quoi que ce soit d'autre : il n'est pas organisateur, et
+     « docs » lui reste fermé. */
+  var horaires = {};
+
+  function chargerHoraires() {
+    if (typeof window.givreTable !== "function") { return; }
+    var t = window.givreTable("roles_infos");
+    t.lire("role,debut,fin,lieu,consigne").then(function (r) {
+      if (r.error) { return; }
+      var m = {};
+      (r.data || []).forEach(function (x) { m[x.role] = x; });
+      horaires = m;
+      rendreCoups();
+    }).catch(function () { /* la page vit sans */ });
+  }
+
+  function poserHoraire(role, champ, valeur) {
+    if (typeof window.givreTable !== "function" || !ecrire) { return; }
+    var h = horaires[role] || { role: role, debut: "", fin: "", lieu: "", consigne: "" };
+    h[champ] = valeur;
+    h.maj = new Date().toISOString();
+    horaires[role] = h;
+    window.givreTable("roles_infos").poser([h], "role").catch(function () { /* silence */ });
+  }
+
+  /** Un champ d'horaire : il n'écrit qu'après une pause de frappe. */
+  function champHoraire(role, champ, place, multi) {
+    var e = document.createElement(multi ? "textarea" : "input");
+    if (!multi) { e.type = "text"; }
+    e.value = (horaires[role] && horaires[role][champ]) || "";
+    e.placeholder = place;
+    e.setAttribute("aria-label", place + " — " + role);
+    e.disabled = !ecrire;
+    var minuteur = null;
+    e.addEventListener("input", function () {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(function () { poserHoraire(role, champ, e.value.trim()); }, 900);
+    });
+    e.addEventListener("blur", function () {
+      clearTimeout(minuteur);
+      poserHoraire(role, champ, e.value.trim());
+    });
+    return e;
+  }
+
   /** Les prénoms d'une invitation, tels qu'ils sont saisis. */
   function prenomsDe(g) {
     return (g.prenoms || "").split(",")
@@ -2151,6 +2221,15 @@ function demarrer() {
       carte.appendChild(creer("span", "combien",
         gens.length ? accorde(gens.length, "personne", "personnes") : "personne pour l'instant"));
 
+      var hor = creer("div", "horaire");
+      var duo = creer("div", "duo");
+      duo.appendChild(champHoraire(r, "debut", "De quand"));
+      duo.appendChild(champHoraire(r, "fin", "Jusqu'à quand"));
+      hor.appendChild(duo);
+      hor.appendChild(champHoraire(r, "lieu", "Où"));
+      hor.appendChild(champHoraire(r, "consigne", "Ce qu'il faut savoir", true));
+      carte.appendChild(hor);
+
       if (!gens.length) {
         carte.appendChild(creer("p", "rien", "Il n'y a encore personne."));
       } else {
@@ -2165,6 +2244,27 @@ function demarrer() {
           bloc.appendChild(creer("span", "nomfoyer", " " + (x.g.nom || "")));
           li.appendChild(bloc);
 
+          var mail = document.createElement("input");
+          mail.type = "email";
+          mail.className = "mail" + (x.g.mail ? "" : " manquant");
+          mail.value = x.g.mail || "";
+          mail.placeholder = "son adresse mail, pour qu'il voie sa mission";
+          mail.setAttribute("aria-label", "Adresse mail de " + x.qui);
+          mail.disabled = !ecrire;
+          (function (g, champ) {
+            var minuteur = null;
+            champ.addEventListener("input", function () {
+              clearTimeout(minuteur);
+              minuteur = setTimeout(function () {
+                poser(g, "mail", champ.value.trim().toLowerCase(), null);
+              }, 900);
+            });
+            champ.addEventListener("blur", function () {
+              clearTimeout(minuteur);
+              poser(g, "mail", champ.value.trim().toLowerCase(), null);
+            });
+          })(x.g, mail);
+
           var oter = creer("button", "oter", "×");
           oter.type = "button";
           oter.title = "Retirer ce coup de main";
@@ -2174,6 +2274,7 @@ function demarrer() {
             poser(x.g, "role", "", null, { benevole: "" });
           });
           li.appendChild(oter);
+          li.appendChild(mail);
           ul.appendChild(li);
         });
         carte.appendChild(ul);
@@ -3163,12 +3264,14 @@ function demarrer() {
               contribution: o.contribution === undefined ? null : o.contribution,
               role: o.role === undefined ? null : o.role,
               benevole: o.benevole === undefined ? null : o.benevole,
+              mail: o.mail === undefined ? null : o.mail,
               statut: o.statut === undefined ? null : o.statut,
               recu: o.recu === undefined ? null : o.recu
             },
             contribution: aEcrire.contribution === undefined ? null : aEcrire.contribution,
             role: aEcrire.role === undefined ? null : aEcrire.role,
             benevole: aEcrire.benevole === undefined ? null : aEcrire.benevole,
+            mail: aEcrire.mail === undefined ? null : aEcrire.mail,
             statut: aEcrire.statut === undefined ? null : aEcrire.statut,
             recu: aEcrire.recu === undefined ? null : aEcrire.recu,
             nom: aEcrire.nom === undefined ? null : aEcrire.nom,
@@ -3269,6 +3372,7 @@ function demarrer() {
           if (typeof c.contribution === "string") { e.contribution = c.contribution; }
           if (typeof c.role === "string") { e.role = c.role; }
           if (typeof c.benevole === "string") { e.benevole = c.benevole; }
+          if (typeof c.mail === "string") { e.mail = c.mail; }
           if (c.statut) { e.statut = c.statut; }
           if (typeof c.recu === "number") { e.recu = c.recu; }
           if (typeof c.nom === "string") { e.nom = c.nom; }
@@ -3305,7 +3409,7 @@ function demarrer() {
           contribution: null,
           statut: "En attente",
           recu: 0,
-          role: "", benevole: "",
+          role: "", benevole: "", mail: "",
           envoyee: false,
           retiree: false,
           quand: new Date().toISOString()
@@ -3366,6 +3470,8 @@ function demarrer() {
           }).then(function () { bo.disabled = false; });
         });
       })();
+
+      chargerHoraires();
 
       $("mot-saisie").textContent = " Les invitations ajoutées, les contributions, les réponses "
         + "et les règlements saisis ici sont partagés entre organisateurs, et reversés dans le "

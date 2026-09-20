@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ma mission</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000C3C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+  /* La page des volontaires. Elle ne sait rien de la liste des invités, des
+     montants ni des coordonnées : ces données vivent dans une table à laquelle
+     son porteur n'a pas accès. Elle ne répond qu'à une question — qu'est-ce
+     que je fais, quand, où, et avec qui. */
+  :root {
+    --nuit:        #000C3C;
+    --nuit-clair:  #001844;
+    --median:      #3F6597;
+    --gris-bleu:   #627FA6;
+    --givre:       #DCECFA;
+    --argent:      #E8E8EC;
+    --blanc:       #F0FCFC;
+    --du:      #D9A441;
+    --regle:   #4FB286;
+    --alerte:  #E68A8A;
+    --duo-clair: #7FBDF2;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans:  "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono:  "IBM Plex Mono", Consolas, ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0; background: var(--nuit); color: var(--blanc);
+    font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .feuille { max-width: 620px; margin: 0 auto; padding: 0 18px 60px; }
+
+  /* ---------------- la porte ---------------- */
+  #porte {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; background: var(--nuit);
+  }
+  #porte[hidden] { display: none; }
+  .porte-boite {
+    width: 100%; max-width: 420px; padding: 26px 22px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.32); border-top: 2px solid var(--givre);
+    border-radius: 4px;
+  }
+  .porte-boite h2 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.6rem; color: var(--blanc);
+  }
+  .porte-boite .sous { margin: 6px 0 20px; color: var(--gris-bleu); font-size: .92rem; }
+  .porte-boite label {
+    display: block; font-family: var(--mono); font-size: .7rem;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--median); margin-bottom: 5px;
+  }
+  .porte-boite input[type="email"] {
+    width: 100%; margin-bottom: 14px;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: 3px;
+    padding: 13px 12px; font-family: var(--sans); font-size: 16px;
+  }
+  .porte-boite button {
+    appearance: none; cursor: pointer; width: 100%;
+    background: rgba(220,236,250,.14); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.45); border-radius: 3px;
+    padding: 14px 16px; font-family: var(--sans); font-size: 1rem; font-weight: 600;
+  }
+  .porte-mot { margin: 14px 0 0; font-size: .88rem; color: var(--gris-bleu); }
+  .porte-mot:empty { display: none; }
+  .porte-mot.raté { color: var(--alerte); }
+  #porte-attente[hidden], #porte-refus[hidden], #porte-forme[hidden] { display: none; }
+
+  /* ---------------- l'en-tête ---------------- */
+  header {
+    padding: calc(28px + env(safe-area-inset-top)) 0 22px;
+    text-align: center;
+  }
+  header .theme {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--median);
+  }
+  header h1 {
+    margin: 6px 0 0; font-family: var(--serif); font-weight: 600;
+    font-size: 2rem; color: var(--givre); letter-spacing: .01em;
+  }
+  header .quand {
+    margin: 6px 0 0; font-size: .9rem; color: var(--gris-bleu);
+  }
+  header .quand b { color: var(--argent); font-weight: 600; }
+
+  #moi {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 14px; font-family: var(--mono); font-size: .72rem; color: var(--median);
+  }
+  #moi[hidden] { display: none; }
+  #deconnexion {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 3px 9px; font-family: var(--sans); font-size: .74rem; color: var(--gris-bleu);
+  }
+
+  /* ---------------- le compte à rebours ---------------- */
+  .rebours {
+    display: flex; justify-content: center; align-items: baseline; gap: 14px;
+    padding: 14px 0 26px; border-bottom: 1px solid rgba(99,127,166,.24);
+  }
+  .rebours b {
+    font-family: var(--mono); font-size: 1.5rem; font-weight: 600; color: var(--blanc);
+    font-variant-numeric: tabular-nums;
+  }
+  .rebours span { font-size: .78rem; color: var(--gris-bleu); margin-left: 3px; }
+
+  /* ---------------- la mission ---------------- */
+  .mission {
+    margin: 22px 0 0; padding: 20px 20px 18px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.3); border-left: 3px solid var(--duo-clair);
+    border-radius: 6px;
+  }
+  .mission h2 {
+    margin: 0 0 3px; font-family: var(--serif); font-weight: 600;
+    font-size: 1.45rem; color: var(--blanc); line-height: 1.25;
+  }
+  .mission .toi { font-family: var(--mono); font-size: .74rem; color: var(--median); }
+
+  .lignes { display: grid; gap: 0; margin: 18px 0 0; }
+  .ligne {
+    display: grid; grid-template-columns: 78px 1fr; gap: 12px;
+    padding: 11px 0; border-top: 1px solid rgba(99,127,166,.18);
+  }
+  .ligne dt {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--median); padding-top: 3px;
+  }
+  .ligne dd { margin: 0; color: var(--blanc); font-size: .97rem; }
+  .ligne dd .sous { display: block; color: var(--gris-bleu); font-size: .88rem; margin-top: 2px; }
+  .ligne dd a { color: var(--givre); }
+
+  .equipe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+  .equipe span {
+    padding: 3px 11px; border-radius: 999px; font-size: .86rem;
+    background: rgba(127,189,242,.13); color: var(--argent);
+    border: 1px solid rgba(127,189,242,.35);
+  }
+  .equipe span.toi-meme {
+    background: rgba(79,178,134,.16); color: var(--regle);
+    border-color: rgba(79,178,134,.5); font-weight: 600;
+  }
+  .equipe .seul { color: var(--du); font-style: italic; border: none; background: none; padding: 0; }
+
+  .consigne {
+    margin: 16px 0 0; padding: 12px 14px;
+    background: rgba(217,164,65,.12); border: 1px solid rgba(217,164,65,.4);
+    border-radius: 4px; color: var(--du); font-size: .92rem;
+  }
+
+  .rien {
+    margin: 30px 0; padding: 22px;
+    background: var(--nuit-clair); border: 1px solid rgba(99,127,166,.3);
+    border-radius: 6px; color: var(--gris-bleu); text-align: center;
+  }
+  .rien b { color: var(--blanc); font-weight: 600; }
+
+  footer {
+    margin-top: 34px; padding-top: 18px;
+    border-top: 1px solid rgba(99,127,166,.24);
+    color: var(--median); font-size: .82rem; line-height: 1.7;
+  }
+
+  #etat-saisie {
+    margin-top: 18px; padding: 10px 14px; border-radius: 4px;
+    font-size: .85rem; color: var(--gris-bleu);
+    background: rgba(99,127,166,.1); border: 1px solid rgba(99,127,166,.28);
+  }
+  #etat-saisie:empty { display: none; }
+  #etat-saisie.mort { color: var(--du); border-color: rgba(217,164,65,.4); }
+</style>
+</head>
+<body>
+
+<div id="porte" hidden>
+  <div class="porte-boite">
+    <h2>Ma mission</h2>
+    <p class="sous">Soirée « Bleu, Chic &amp; Givré ». Entre avec l'adresse que
+      les organisateurs ont notée pour toi — sans mot de passe.</p>
+
+    <form id="porte-forme" hidden>
+      <label for="porte-mail">Ton adresse mail</label>
+      <input type="email" id="porte-mail" autocomplete="email" inputmode="email" required
+             placeholder="prenom@exemple.fr">
+      <button type="submit" id="porte-ok">Recevoir mon lien</button>
+    </form>
+
+    <div id="porte-attente" hidden>
+      <p>Un lien vient de partir vers <b id="porte-adresse"></b>.</p>
+      <p class="sous">Ouvre-le depuis cet appareil. Il ne sert qu'une fois, et
+        il expire au bout d'une heure. Regarde les indésirables s'il tarde.</p>
+    </div>
+
+    <div id="porte-refus" hidden>
+      <p><b id="porte-refus-mail"></b> n'est pas dans la liste.</p>
+      <p class="sous">Demande à Mickaël de noter cette adresse-là, ou reconnecte-toi
+        avec celle qu'il a inscrite.</p>
+    </div>
+
+    <p class="porte-mot" id="porte-mot"></p>
+  </div>
+</div>
+
+<div class="feuille">
+  <header>
+    <p class="theme">Bleu, Chic &amp; Givré</p>
+    <h1 id="salut">Ma mission</h1>
+    <p class="quand">Samedi <b>19 décembre 2026</b> · Salle des fêtes, Le Passage</p>
+    <div id="moi" hidden><span id="moi-nom"></span>
+      <button type="button" id="deconnexion">Se déconnecter</button>
+    </div>
+  </header>
+
+  <div class="rebours">
+    <span><b id="j">—</b><span>jours</span></span>
+    <span><b id="h">—</b><span>h</span></span>
+    <span><b id="m">—</b><span>min</span></span>
+  </div>
+
+  <main id="missions"></main>
+
+  <div id="etat-saisie"></div>
+
+  <footer>
+    <p>Un imprévu, une question ? Préviens Mickaël plutôt que de ne rien dire :
+      une place vide le jour même se remplace mal.</p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js?v=202609200845"></script>
+<script>
+/* Cette page ne passe pas par « acces.js ».
+
+   Ce fichier-là charge la liste des invités et vérifie l'appartenance à
+   l'équipe d'organisation : deux choses qu'un volontaire ne doit ni voir ni
+   subir. Ici, la porte est plus simple — on se connecte, on lit sa ligne dans
+   « benevoles », et c'est tout. Les règles de la base font le reste : même
+   en trafiquant cette page, on n'obtiendrait rien d'autre. */
+(function () {
+  "use strict";
+
+  var sb = null, moi = null, entree = false;
+  var SOIREE = new Date("2026-12-19T18:30:00");
+
+  function $(id) { return document.getElementById(id); }
+  function creer(t, c, x) {
+    var e = document.createElement(t);
+    if (c) { e.className = c; }
+    if (x !== undefined) { e.textContent = x; }
+    return e;
+  }
+  function dire(texte, genre) {
+    var e = $("porte-mot");
+    e.textContent = texte;
+    e.className = "porte-mot" + (genre ? " " + genre : "");
+  }
+  function etat(texte, genre) {
+    var e = $("etat-saisie");
+    e.textContent = texte || "";
+    e.className = genre || "";
+  }
+
+  /* ---------------- le compte à rebours ---------------- */
+  function deux(n) { return (n < 10 ? "0" : "") + n; }
+  function battre() {
+    var reste = SOIREE - new Date();
+    if (reste <= 0) {
+      ["j", "h", "m"].forEach(function (k) { $(k).textContent = "—"; });
+      return;
+    }
+    var sec = Math.floor(reste / 1000);
+    $("j").textContent = Math.floor(sec / 86400);
+    $("h").textContent = deux(Math.floor(sec / 3600) % 24);
+    $("m").textContent = deux(Math.floor(sec / 60) % 60);
+  }
+  battre();
+  setInterval(battre, 30000);
+
+  /* ---------------- la porte ---------------- */
+  function envoyerLeLien(e) {
+    e.preventDefault();
+    var mail = $("porte-mail").value.trim().toLowerCase();
+    if (!mail) { return; }
+    var b = $("porte-ok");
+    b.disabled = true;
+    dire("Envoi du lien…", "");
+    sb.auth.signInWithOtp({
+      email: mail,
+      options: { emailRedirectTo: window.location.href.split("#")[0] }
+    }).then(function (r) {
+      b.disabled = false;
+      if (r.error) { dire("L'envoi a échoué : " + r.error.message, "raté"); return; }
+      $("porte-forme").hidden = true;
+      $("porte-attente").hidden = false;
+      $("porte-adresse").textContent = mail;
+      dire("", "");
+    }).catch(function () {
+      b.disabled = false;
+      dire("L'envoi a échoué. Réessaie dans un instant.", "raté");
+    });
+  }
+
+  /* ---------------- la mission ---------------- */
+
+  function ligne(etiquette, contenu) {
+    var l = creer("div", "ligne");
+    l.appendChild(creer("dt", null, etiquette));
+    var dd = creer("dd");
+    if (typeof contenu === "string") { dd.textContent = contenu; }
+    else { dd.appendChild(contenu); }
+    l.appendChild(dd);
+    return l;
+  }
+
+  function afficher(miennes, equipe, infos) {
+    var boite = $("missions");
+    boite.textContent = "";
+
+    if (!miennes.length) {
+      var r = creer("div", "rien");
+      r.appendChild(creer("p", null, "Aucune mission ne t'est attribuée pour l'instant."));
+      var p = creer("p");
+      p.appendChild(document.createTextNode("Si tu t'es proposé, c'est que ton "));
+      p.appendChild(creer("b", null, "inscription n'est pas encore notée"));
+      p.appendChild(document.createTextNode(" — préviens Mickaël."));
+      r.appendChild(p);
+      boite.appendChild(r);
+      return;
+    }
+
+    miennes.forEach(function (b) {
+      var info = infos[b.role] || {};
+      var carte = creer("section", "mission");
+      carte.appendChild(creer("h2", null, b.role));
+      carte.appendChild(creer("p", "toi",
+        b.prenom ? (b.prenom + (b.foyer ? " · " + b.foyer : "")) : (b.foyer || "")));
+
+      var dl = creer("dl", "lignes");
+
+      var quand = creer("span");
+      quand.appendChild(document.createTextNode(info.debut || "horaire à préciser"));
+      if (info.fin) { quand.appendChild(creer("span", "sous", "jusqu'à " + info.fin)); }
+      dl.appendChild(ligne("Quand", quand));
+
+      if (info.lieu) {
+        var ou = creer("span");
+        var a = creer("a", null, info.lieu);
+        a.href = "https://maps.google.com/?q=" + encodeURIComponent(info.lieu);
+        a.target = "_blank";
+        a.rel = "noopener";
+        ou.appendChild(a);
+        dl.appendChild(ligne("Où", ou));
+      }
+
+      var gens = (equipe[b.role] || []).slice().sort(function (x, y) {
+        return (x.prenom || "").localeCompare(y.prenom || "", "fr", { sensitivity: "base" });
+      });
+      var eq = creer("div", "equipe");
+      if (gens.length <= 1) {
+        eq.appendChild(creer("span", "seul", "Tu es seul sur ce poste pour l'instant."));
+      } else {
+        gens.forEach(function (g) {
+          var nom = g.prenom || g.foyer || "quelqu'un";
+          eq.appendChild(creer("span", g.email === moi ? "toi-meme" : "", nom));
+        });
+      }
+      dl.appendChild(ligne("Avec", eq));
+
+      carte.appendChild(dl);
+
+      if (info.consigne) {
+        carte.appendChild(creer("p", "consigne", info.consigne));
+      }
+      boite.appendChild(carte);
+    });
+  }
+
+  function entrer(session) {
+    if (entree) { return; }
+    entree = true;
+    moi = (session.user.email || "").toLowerCase();
+
+    Promise.all([
+      sb.from("benevoles").select("email,prenom,foyer,role"),
+      sb.from("roles_infos").select("role,debut,fin,lieu,consigne")
+    ]).then(function (res) {
+      if (res[0].error) { throw res[0].error; }
+      var tous = res[0].data || [];
+      var miennes = tous.filter(function (b) { return (b.email || "").toLowerCase() === moi; });
+
+      if (!miennes.length) {
+        $("porte-forme").hidden = true;
+        $("porte-attente").hidden = true;
+        $("porte-refus").hidden = false;
+        $("porte-refus-mail").textContent = moi;
+        $("porte").hidden = false;
+        return;
+      }
+
+      var equipe = {};
+      tous.forEach(function (b) {
+        (equipe[b.role] = equipe[b.role] || []).push(b);
+      });
+      var infos = {};
+      ((res[1] && res[1].data) || []).forEach(function (i) { infos[i.role] = i; });
+
+      var prenom = miennes[0].prenom;
+      $("salut").textContent = prenom ? ("Bonjour " + prenom) : "Ma mission";
+      $("moi-nom").textContent = moi;
+      $("moi").hidden = false;
+      $("porte").hidden = true;
+
+      afficher(miennes, equipe, infos);
+      etat("", "");
+    }).catch(function (e) {
+      entree = false;
+      etat("Impossible de charger ta mission : " + (e.message || e), "mort");
+      $("porte").hidden = false;
+      dire("Impossible de charger ta mission. Réessaie dans un instant.", "raté");
+    });
+  }
+
+  function demarrage() {
+    if (!window.CONFIG || window.CONFIG.url === "A_REMPLIR") {
+      $("porte").hidden = false;
+      $("porte-forme").hidden = true;
+      dire("Le site n'est pas encore relié à sa base.", "raté");
+      return;
+    }
+    sb = window.supabase.createClient(window.CONFIG.url, window.CONFIG.cle, {
+      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true }
+    });
+
+    $("porte-forme").addEventListener("submit", envoyerLeLien);
+    $("deconnexion").addEventListener("click", function () {
+      sb.auth.signOut().then(function () { window.location.reload(); });
+    });
+
+    sb.auth.getSession().then(function (r) {
+      var s = r.data && r.data.session;
+      if (s) { entrer(s); }
+      else {
+        $("porte").hidden = false;
+        $("porte-forme").hidden = false;
+        $("porte-mail").focus();
+      }
+    });
+    sb.auth.onAuthStateChange(function (evt, s) {
+      if ((evt === "SIGNED_IN" || evt === "INITIAL_SESSION") && s) { entrer(s); }
+      if (evt === "SIGNED_OUT") { window.location.reload(); }
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () { /* tant pis */ });
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", demarrage);
+  } else {
+    demarrage();
+  }
+})();
+</script>
+</body>
+</html>

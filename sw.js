@@ -12,6 +12,7 @@ var CACHE = "givre";
 var SOCLE = [
   "index.html",
   "pointage.html",
+  "ma-mission.html",
   "config.js",
   "acces.js",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"

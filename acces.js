@@ -42,6 +42,18 @@
   }
   window.givreCache = { garder: garder, repris: repris };
 
+  /* Un accès direct à une table autre que « docs », pour les horaires des
+     rôles. La feuille partagée ne sait parler que de « docs » : plutôt que de
+     tordre son contrat, on expose ici le strict nécessaire. */
+  window.givreTable = function (nom) {
+    return {
+      lire: function (colonnes) { return sb.from(nom).select(colonnes || "*"); },
+      poser: function (lignes, conflit) {
+        return sb.from(nom).upsert(lignes, { onConflict: conflit || "id" });
+      }
+    };
+  };
+
   function dire(texte, genre) {
     var e = $("porte-mot");
     if (!e) { return; }
