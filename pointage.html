@@ -230,6 +230,12 @@
   #etat-saisie.vivant { color: var(--regle); border-top-color: rgba(79,178,134,.4); }
   #etat-saisie.mort { color: var(--du); border-top-color: rgba(217,164,65,.45); }
   #etat-saisie:empty { display: none; }
+  #etat-saisie .attente {
+    display: inline-block; margin-left: 8px; padding: 2px 9px;
+    border-radius: 999px; font-family: var(--mono); font-size: .76rem;
+    background: rgba(217,164,65,.18); color: var(--du);
+    border: 1px solid rgba(217,164,65,.5);
+  }
 
   .lien-retour {
     display: block; text-align: center; padding: 18px 16px 30px;
@@ -305,8 +311,8 @@
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200758"></script>
-<script src="acces.js?v=202609200758"></script>
+<script src="config.js?v=202609200805"></script>
+<script src="acces.js?v=202609200805"></script>
 <script>
 /* Le soir venu : une liste, un bouton par foyer, et le compte qui monte.
 
@@ -325,11 +331,20 @@ function demarrer() {
   var D = window.DONNEES;
   var TA = D.tarif_adulte || 8, TE = D.tarif_enfant || 3;
 
-  var saisies = {};    // les modifications en ligne, par numéro de ligne
-  var ajouts = {};     // les invitations créées en ligne
-  var pointage = {};   // les arrivées de ce soir
-  var ecrire = null;   // posé par la feuille partagée quand elle répond
+  /* Une salle des fêtes capte mal, et la soirée n'attendra pas le réseau.
+     Tout ce que l'on sait est gardé dans le navigateur, et tout ce que l'on
+     écrit passe d'abord par une file persistante : une coupure ne fait que
+     retarder l'envoi, elle ne perd rien. Même un téléphone éteint et rallumé
+     retrouve sa file. */
+  var cache = window.givreCache || { garder: function () {}, repris: function () { return null; } };
+
+  var saisies = cache.repris("p-saisies") || {};
+  var ajouts = cache.repris("p-ajouts") || {};
+  var pointage = cache.repris("p-pointage") || {};
+  var cols = null;     // les collections, une fois la feuille partagée là
   var filtre = "attente";
+  var envoiEnCours = false;
+  var refuse = false;  // la base a dit non : inutile de s'acharner
 
   var euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR",
                                                maximumFractionDigits: 0 });
@@ -343,10 +358,71 @@ function demarrer() {
   }
   function accorde(n, un, plusieurs) { return n + " " + (Math.abs(n) > 1 ? plusieurs : un); }
 
+  function file() { return cache.repris("p-file") || []; }
+  function poserFile(f) { cache.garder("p-file", f); }
+
   function etat(classe, texte) {
     var e = $("etat-saisie");
     e.className = classe || "";
     e.textContent = texte || "";
+    var n = file().length;
+    if (n) {
+      e.appendChild(creer("span", "attente",
+        n + " en attente d'envoi"));
+    }
+  }
+
+  /** Met une écriture en file et tente de l'envoyer. Une seule entrée par
+      document : la dernière valeur est la bonne, inutile de rejouer les
+      étapes intermédiaires d'un compteur qu'on a monté puis redescendu. */
+  function ecrire(col, id, corps, fiche) {
+    if (refuse) { return; }
+    var f = file().filter(function (x) { return !(x.col === col && x.id === id); });
+    f.push({ col: col, id: id, corps: corps, quand: new Date().toISOString() });
+    poserFile(f);
+    vider();
+  }
+
+  /** Vide la file, une entrée à la fois, et s'arrête au premier échec :
+      l'ordre compte, et rien ne sert de marteler un réseau absent. */
+  function vider() {
+    if (envoiEnCours || !cols || refuse) { majEtat(); return; }
+    var f = file();
+    if (!f.length) { majEtat(); return; }
+
+    var x = f[0];
+    envoiEnCours = true;
+    majEtat();
+    cols[x.col].doc(x.id).set(x.corps).then(function () {
+      poserFile(file().filter(function (y) {
+        return !(y.col === x.col && y.id === x.id && y.quand === x.quand);
+      }));
+      envoiEnCours = false;
+      vider();
+    }).catch(function (err) {
+      envoiEnCours = false;
+      if (err && err.code === "invalid_argument") {
+        refuse = true;
+        poserFile([]);
+        etat("mort", "Tu peux consulter cette page mais pas pointer.");
+        rendre();
+        return;
+      }
+      majEtat();     // réseau absent : on réessaiera tout seul
+    });
+  }
+
+  function majEtat() {
+    var n = file().length;
+    if (refuse) { return; }
+    if (!n) {
+      etat("vivant", navigator.onLine
+        ? "Tout est enregistré — chacun voit les arrivées des autres."
+        : "Hors ligne, mais tout est déjà parti.");
+      return;
+    }
+    etat(navigator.onLine ? "" : "mort",
+      navigator.onLine ? "Envoi en cours…" : "Hors ligne — le pointage continue.");
   }
 
   /** Combien de prénoms sont saisis : le classeur compte pareil. */
@@ -413,7 +489,7 @@ function demarrer() {
 
   /** Une arrivée : combien de personnes, et par qui pointées. */
   function poserPointage(g, champs, fiche) {
-    if (!ecrire) { return; }
+    if (refuse) { return; }
     var d = pointage[g.cle] || {};
     var corps = {
       cle: g.cle, col: g.col, docId: g.docId,
@@ -426,6 +502,7 @@ function demarrer() {
     for (var k in champs) { corps[k] = champs[k]; }
     corps.quand = new Date().toISOString();
     pointage[g.cle] = corps;            // l'écran répond tout de suite
+    cache.garder("p-pointage", pointage);
     rendre();
     ecrire("pointage", g.cle, corps, fiche);
   }
@@ -434,13 +511,14 @@ function demarrer() {
       saisie ordinaire du tableau de bord : c'est ce qui le fera remonter dans
       le classeur au reversement. Les repères de fusion l'accompagnent. */
   function poserReglement(g, montant, fiche) {
-    if (!ecrire) { return; }
+    if (refuse) { return; }
     if (g.col === "ajouts") {
       var a = ajouts[g.docId] || {};
       var neuf = {};
       for (var k in a) { neuf[k] = a[k]; }
       neuf.recu = montant;
       ajouts[g.docId] = neuf;
+      cache.garder("p-ajouts", ajouts);
       ecrire("ajouts", g.docId, neuf, fiche);
     } else {
       var o = g.origine || {};
@@ -474,6 +552,7 @@ function demarrer() {
       for (var j in s) { neuve[j] = s[j]; }
       neuve.recu = montant;
       saisies[g.ligne] = neuve;
+      cache.garder("p-saisies", saisies);
       ecrire("saisies", String(g.ligne), corps, fiche);
     }
     rendre();
@@ -516,7 +595,7 @@ function demarrer() {
       if (!la) {
         var b = creer("button", "pointer", "Arrivés");
         b.type = "button";
-        b.disabled = !ecrire;
+        b.disabled = refuse;
         b.addEventListener("click", function () {
           poserPointage(g, { arrive: true, presents: g.personnes }, li);
         });
@@ -526,7 +605,7 @@ function demarrer() {
         var moins = creer("button", null, "−");
         moins.type = "button";
         moins.setAttribute("aria-label", "Une personne de moins");
-        moins.disabled = !ecrire || ici(g) <= 0;
+        moins.disabled = refuse || ici(g) <= 0;
         moins.addEventListener("click", function () {
           poserPointage(g, { presents: Math.max(0, ici(g) - 1) }, li);
         });
@@ -540,7 +619,7 @@ function demarrer() {
         var plus = creer("button", null, "+");
         plus.type = "button";
         plus.setAttribute("aria-label", "Une personne de plus");
-        plus.disabled = !ecrire;
+        plus.disabled = refuse;
         plus.addEventListener("click", function () {
           poserPointage(g, { presents: ici(g) + 1 }, li);
         });
@@ -549,7 +628,7 @@ function demarrer() {
 
         var ann = creer("button", "annuler", "Annuler");
         ann.type = "button";
-        ann.disabled = !ecrire;
+        ann.disabled = refuse;
         ann.title = "Cette famille n'est finalement pas là";
         ann.addEventListener("click", function () {
           poserPointage(g, { arrive: false, presents: 0 }, li);
@@ -560,7 +639,7 @@ function demarrer() {
       if (du > 0) {
         var e = creer("button", "encaisser", "Encaisser " + euros.format(du));
         e.type = "button";
-        e.disabled = !ecrire;
+        e.disabled = refuse;
         e.addEventListener("click", function () {
           if (!window.confirm("Encaisser " + euros.format(du) + " de la part de "
                               + (g.nom || "cette invitation") + " ?")) { return; }
@@ -640,44 +719,37 @@ function demarrer() {
   });
 
   rendre();
+  majEtat();
+
+  /* Les instantanés se FONDENT dans l'état local, ils ne le remplacent pas.
+     Hors ligne, la feuille partagée ne connaît que les documents qu'on vient
+     d'écrire : les prendre pour la vérité effacerait tout le reste. */
+  function fondreDans(objet, snap, cle) {
+    snap.docs.forEach(function (d) { objet[d.id] = d.data() || {}; });
+    cache.garder(cle, objet);
+    rendre();
+  }
 
   claude.use("db").then(function (db) {
     if (!db) {
       etat("mort", "Feuille partagée indisponible : rien ne peut être enregistré.");
       return;
     }
-    var cols = {
+    cols = {
       saisies: db.collection("saisies"),
       ajouts: db.collection("ajouts"),
       pointage: db.collection("pointage")
     };
-    var enCours = {};
 
-    ecrire = function (col, id, corps, fiche) {
-      var cle = col + "/" + id;
-      if (enCours[cle]) { enCours[cle] = corps; return; }
-      enCours[cle] = corps;
-      cols[col].doc(id).set(enCours[cle]).then(function () {
-        delete enCours[cle];
-        etat("vivant", "Enregistré — les autres le voient aussitôt.");
-      }).catch(function (err) {
-        delete enCours[cle];
-        if (err && err.code === "invalid_argument") {
-          etat("mort", "Tu peux consulter cette page mais pas pointer.");
-          ecrire = null;
-          rendre();
-        } else {
-          etat("mort", "L'enregistrement a échoué. Réessaie.");
-        }
-      });
-    };
+    // ce qui attendait depuis la dernière fois part maintenant
+    vider();
+    window.addEventListener("online", vider);
+    window.addEventListener("offline", majEtat);
+    setInterval(vider, 15000);
 
     cols.pointage.onSnapshot(function (snap) {
-      var neuf = {};
-      snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
-      pointage = neuf;
-      rendre();
-    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+      fondreDans(pointage, snap, "p-pointage");
+    }, majEtat);
 
     cols.saisies.onSnapshot(function (snap) {
       var neuf = {};
@@ -695,17 +767,15 @@ function demarrer() {
         if (c.retiree === true) { e.retiree = true; }
         neuf[d.id] = e;
       });
-      saisies = neuf;
+      Object.keys(neuf).forEach(function (k) { saisies[k] = neuf[k]; });
+      cache.garder("p-saisies", saisies);
       rendre();
-      etat("vivant", "Pointage partagé — chacun voit les arrivées des autres.");
-    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+      majEtat();
+    }, majEtat);
 
     cols.ajouts.onSnapshot(function (snap) {
-      var neuf = {};
-      snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
-      ajouts = neuf;
-      rendre();
-    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+      fondreDans(ajouts, snap, "p-ajouts");
+    }, majEtat);
   }).catch(function () {
     etat("mort", "Feuille partagée indisponible.");
   });

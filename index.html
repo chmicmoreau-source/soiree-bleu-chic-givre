@@ -526,6 +526,24 @@
   }
   .forme.neuf > .etiq:first-child { margin-top: 0; }
 
+  .mesure { display: block; margin-top: 9px; max-width: 460px; }
+  .mesure .dit {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-family: var(--mono); font-size: .72rem; color: var(--median);
+    letter-spacing: .03em; margin-bottom: 4px;
+  }
+  .mesure .dit b { color: var(--argent); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mesure .piste {
+    height: 6px; background: rgba(99,127,166,.24);
+    border-radius: 3px; overflow: hidden;
+  }
+  .mesure .piste i {
+    display: block; height: 100%; border-radius: 3px;
+    background: var(--duo-clair); transition: width .4s ease-out;
+  }
+  .mesure.pleine .piste i { background: var(--regle); }
+  .mesure.tard .piste i { background: var(--du); }
+
   .rail li.retire { opacity: .48; }
   .rail li.retire .quoi { text-decoration: line-through; }
   .rail li.edition { padding-bottom: 30px; }
@@ -994,6 +1012,8 @@
         <input type="text" class="champ" id="jn-quoi" placeholder="Réunion de calage" required>
         <span class="etiq">Précision</span>
         <input type="text" class="champ" id="jn-note" placeholder="Pourquoi ce repère compte">
+        <span class="etiq">Ce que la barre mesure</span>
+        <select class="champ" id="jn-mesure" aria-label="Ce que la barre mesure"></select>
         <div class="gestes">
           <button type="submit" class="mini vert" id="jn-ok" disabled>Ajouter le repère</button>
         </div>
@@ -1047,8 +1067,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609200758"></script>
-<script src="acces.js?v=202609200758"></script>
+<script src="config.js?v=202609200805"></script>
+<script src="acces.js?v=202609200805"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1235,15 +1255,16 @@ function demarrer() {
 
   var JALONS_DEFAUT = [
     { id: "j1", debut: "2026-09-19", fin: "2026-10-18",
-      quand: "19 septembre 2026", quoi: "Envoi des invitations",
+      quand: "19 septembre 2026", quoi: "Envoi des invitations", mesure: "envoyees",
       note: "Trois mois pile avant la fête. Chacun priorise ses 38 places et ajuste "
           + "ensuite selon les réponses." },
     { id: "j2", debut: "2026-10-01", fin: "2026-10-19",
-      quand: "19 octobre 2026", quoi: "Réponses et règlements",
+      quand: "19 octobre 2026", quoi: "Réponses et règlements", mesure: "reponses",
       note: "Date annoncée sur l'invitation. L'an dernier, à six jours de la fête, "
           + "seuls 22 % des participations étaient rentrées : les relances font tout." },
     { id: "j3", debut: "2026-10-20", fin: "2026-12-18",
       quand: "Du 20 octobre au 18 décembre", quoi: "Relances, achats, décoration",
+      mesure: "reglements",
       note: "Deux relances prévues, comme l'an dernier. Chaque achat va dans l'onglet "
           + "Dépenses, avec qui l'a avancé." },
     { id: "j4", debut: "2026-12-19", fin: "2026-12-19",
@@ -1251,7 +1272,7 @@ function demarrer() {
       note: "La salle n'est à nous qu'à partir de 8 h, et la journée est prise "
           + "ensuite : réunion l'après-midi, soirée le soir." },
     { id: "j5", debut: "2026-12-19", fin: "2026-12-20",
-      quand: "Samedi 19 décembre, 18h30", quoi: "La soirée",
+      quand: "Samedi 19 décembre, 18h30", quoi: "La soirée", mesure: "personnes",
       note: "Puis le rangement, la nuit même : la salle doit être rendue en état "
           + "pour le lendemain matin." },
     { id: "j6", debut: "2026-12-20", fin: "2026-12-21",
@@ -1279,6 +1300,48 @@ function demarrer() {
       detail: "La fête du dimanche a tranché de ne pas en servir, pour ses raisons "
             + "propres ; la soirée du samedi reste à décider." }
   ];
+
+  /* Ce qu'un repere peut mesurer. Une barre qui ne compte rien de reel ne
+     vaut pas la place qu'elle prend : chaque mesure lit l'etat du moment,
+     et se met a jour comme le reste de la page. */
+  var MESURES = {
+    envoyees: {
+      nom: "Invitations envoyées",
+      lire: function (v) {
+        var n = 0;
+        v.forEach(function (g) { if (g.envoyee) { n += 1; } });
+        return { fait: n, total: v.length, unite: "invitation" };
+      }
+    },
+    reponses: {
+      nom: "Réponses reçues",
+      lire: function (v) {
+        var n = 0;
+        v.forEach(function (g) { if (g.statut && g.statut !== "En attente") { n += 1; } });
+        return { fait: n, total: v.length, unite: "réponse" };
+      }
+    },
+    reglements: {
+      nom: "Règlements encaissés",
+      lire: function (v) {
+        var du = 0, recu = 0;
+        v.forEach(function (g) { du += g.du; recu += (g.recu || 0); });
+        return { fait: recu, total: du, argent: true };
+      }
+    },
+    personnes: {
+      nom: "Places occupées",
+      lire: function (v) {
+        var n = 0;
+        v.forEach(function (g) { n += g.personnes; });
+        return { fait: n + (D.organisateurs || 0), total: D.jauge || 0, unite: "personne" };
+      }
+    },
+    temps: {
+      nom: "Temps écoulé",
+      lire: null            // se calcule sur les dates du repère lui-même
+    }
+  };
 
   var jalons = {};          // ce que la feuille partagee dit des reperes
   var ouverts = {};         // ... et des points a trancher
@@ -1357,7 +1420,8 @@ function demarrer() {
     if (!ecrireWk) { return; }
     var corps = {
       debut: j.debut || "", fin: j.fin || "", quand: j.quand || "",
-      quoi: j.quoi || "", note: j.note || "", retire: j.retire === true,
+      quoi: j.quoi || "", note: j.note || "", mesure: j.mesure || "",
+      retire: j.retire === true,
       cree: (jalons[j.id] && jalons[j.id].cree) || null
     };
     jalons[j.id] = corps;   // affiche tout de suite : l'instantane suivra
@@ -1466,6 +1530,53 @@ function demarrer() {
     }
   }
 
+  /** La barre d'un repere : ce qui est fait, sur ce qui est prevu.
+      « temps » n'interroge pas les invitations mais les dates du repere :
+      pour une periode de preparation, l'avancement utile est celui du
+      calendrier, et la barre passe a l'ambre quand elle se remplit trop vite
+      par rapport a ce qui reste a faire. */
+  function barreMesure(j) {
+    var m = MESURES[j.mesure];
+    if (!m) { return null; }
+
+    var fait, total, texte, argent = false;
+    if (j.mesure === "temps") {
+      if (!j.debut || !j.fin) { return null; }
+      var d = new Date(j.debut + "T00:00:00").getTime();
+      var f = new Date(j.fin + "T23:59:59").getTime();
+      var maintenant = Date.now();
+      total = Math.max(1, f - d);
+      fait = Math.max(0, Math.min(total, maintenant - d));
+      var jours = Math.ceil((f - maintenant) / 86400000);
+      texte = jours > 0 ? accorde(jours, "jour restant", "jours restants")
+                        : (jours === 0 ? "dernier jour" : "période passée");
+    } else {
+      var lu = m.lire(vivants());
+      fait = lu.fait;
+      total = lu.total;
+      argent = lu.argent === true;
+      texte = argent
+        ? euros.format(fait) + " sur " + euros.format(total)
+        : fait + " sur " + total;
+    }
+
+    var part = total > 0 ? Math.max(0, Math.min(1, fait / total)) : 0;
+    var boite = creer("div", "mesure" + (part >= 1 ? " pleine" : ""));
+
+    var dit = creer("div", "dit");
+    dit.appendChild(creer("span", null, m.nom));
+    var b = creer("b", null, texte + "  ·  " + pourcent.format(part));
+    dit.appendChild(b);
+    boite.appendChild(dit);
+
+    var piste = creer("div", "piste"), plein = creer("i");
+    plein.style.width = (part * 100).toFixed(1) + "%";
+    piste.appendChild(plein);
+    boite.appendChild(piste);
+    boite.title = m.nom + " — " + texte;
+    return boite;
+  }
+
   function rendreRail() {
     var ul = $("rail");
     if (!ul) { return; }
@@ -1503,6 +1614,25 @@ function demarrer() {
         li.appendChild(etiquette("Précision"));
         li.appendChild(champLibre("jn-" + j.id, j.note, "Pourquoi ce repère compte",
           function (v) { j.note = v; poserJalon(j, li); }, true));
+        li.appendChild(etiquette("Ce que la barre mesure"));
+        var sm = document.createElement("select");
+        sm.className = "champ";
+        sm.id = "jm-" + j.id;
+        sm.disabled = !ecrireWk;
+        sm.setAttribute("aria-label", "Ce que la barre mesure");
+        var vide = creer("option", "", "Aucune barre");
+        vide.value = "";
+        sm.appendChild(vide);
+        Object.keys(MESURES).forEach(function (k) {
+          var o = creer("option", "", MESURES[k].nom);
+          o.value = k;
+          if (k === j.mesure) { o.selected = true; }
+          sm.appendChild(o);
+        });
+        sm.addEventListener("change", function () {
+          j.mesure = sm.value; poserJalon(j, li); rendreRail();
+        });
+        li.appendChild(sm);
         var g1 = creer("div", "gestes");
         g1.appendChild(boutonMini("Terminé", "vert", function () {
           editJalon = null; rendreRail();
@@ -1515,6 +1645,8 @@ function demarrer() {
         li.appendChild(creer("span", "quand", j.quand || libelleDates(j.debut, j.fin)));
         li.appendChild(creer("span", "quoi", j.quoi || "Repère sans intitulé"));
         if (j.note) { li.appendChild(creer("span", "note", j.note)); }
+        var barre = barreMesure(j);
+        if (barre && !j.retire) { li.appendChild(barre); }
         var g2 = creer("div", "gestes");
         if (j.retire) {
           g2.appendChild(boutonMini("Remettre", "rendre", function () {
@@ -2707,6 +2839,19 @@ function demarrer() {
       o.value = n; o.textContent = n;
       sel.appendChild(o);
     });
+    (function () {
+      var sm = $("jn-mesure");
+      if (!sm) { return; }
+      var vide = creer("option", "", "Aucune barre");
+      vide.value = "";
+      sm.appendChild(vide);
+      Object.keys(MESURES).forEach(function (k) {
+        var o = creer("option", "", MESURES[k].nom);
+        o.value = k;
+        sm.appendChild(o);
+      });
+    })();
+
     remplirOrganisateurs($("on-decide"), "", "Qui décide…",
                          ["commune", "Décision commune"]);
     remplirOrganisateurs($("on-charge"), "", "Qui s'en occupe…");
@@ -2933,9 +3078,10 @@ function demarrer() {
           bj.disabled = true;
           ajouterWk("jalons", {
             debut: debut, fin: fin, quand: libelleDates(debut, fin),
-            quoi: quoi, note: $("jn-note").value.trim(), retire: false
+            quoi: quoi, note: $("jn-note").value.trim(),
+            mesure: $("jn-mesure").value || "", retire: false
           }).then(function () {
-            $("jn-quoi").value = ""; $("jn-note").value = "";
+            $("jn-quoi").value = ""; $("jn-note").value = ""; $("jn-mesure").value = "";
             $("jn-debut").value = ""; $("jn-fin").value = "";
             etat("vivant", "Rep\u00e8re ajout\u00e9 \u2014 il appara\u00eet aussi chez les autres.");
           }).catch(function () {

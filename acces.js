@@ -26,6 +26,22 @@
 
   function $(id) { return document.getElementById(id); }
 
+  /* Une salle des fêtes capte mal. Ce qui a été chargé une fois est gardé
+     dans le navigateur : au prochain démarrage sans réseau, la page s'ouvre
+     quand même sur ce qu'elle savait. Ce cache est un confort, jamais une
+     source : la base le remplace dès qu'elle répond. */
+  function garder(cle, valeur) {
+    try { window.localStorage.setItem("givre-" + cle, JSON.stringify(valeur)); }
+    catch (e) { /* navigation privée, quota : tant pis */ }
+  }
+  function repris(cle) {
+    try {
+      var b = window.localStorage.getItem("givre-" + cle);
+      return b ? JSON.parse(b) : null;
+    } catch (e) { return null; }
+  }
+  window.givreCache = { garder: garder, repris: repris };
+
   function dire(texte, genre) {
     var e = $("porte-mot");
     if (!e) { return; }
@@ -196,6 +212,7 @@
       Object.keys(reg).forEach(function (k) { D[k] = reg[k]; });
       D.invites = invites;
       window.DONNEES = D;
+      garder("donnees", D);
     });
   }
 
@@ -212,6 +229,30 @@
     if (entree) { return Promise.resolve(); }
     entree = true;
     moi = (session.user.email || "").toLowerCase();
+    /* Hors ligne, la vérification d'appartenance et le chargement échouent
+       tous deux. Plutôt que de fermer la porte au nez de quelqu'un déjà
+       reconnu la veille, on repart du souvenir — la base, elle, garde le
+       dernier mot dès qu'elle répond. */
+    function deSouvenir(pourquoi) {
+      var su = repris("moi"), dd = repris("donnees");
+      if (!su || su.email !== moi || !dd) { throw pourquoi; }
+      monNom = su.nom;
+      window.DONNEES = dd;
+      window.claude = {
+        use: function (nom) {
+          return Promise.resolve(nom === "db" ? feuillePartagee() : null);
+        }
+      };
+      $("moi-nom").textContent = monNom;
+      $("moi").hidden = false;
+      fermerLaPorte();
+      lance = true;
+      window.demarrer();
+      direEtat("Hors ligne \u2014 affichage de la dernière version connue. "
+             + "Tes saisies seront envoyées au retour du réseau.");
+      return null;
+    }
+
     return sb.from("organisateurs").select("nom").eq("email", moi)
       .then(function (r) {
         if (r.error) { throw r.error; }
@@ -224,6 +265,7 @@
           return null;
         }
         monNom = r.data[0].nom;
+        garder("moi", { email: moi, nom: monNom });
         return chargerDonnees().then(function () {
           window.claude = {
             use: function (nom) {
@@ -238,6 +280,10 @@
         });
       })
       .catch(function (e) {
+        // d'abord le souvenir : une coupure ne doit pas arrêter la soirée
+        if (!lance) {
+          try { return deSouvenir(e); } catch (rien) { /* rien de gardé */ }
+        }
         // Une fois la page lancée, on ne la recouvre plus : le souci se dit
         // dans le bandeau, sinon on effacerait un écran qui marchait.
         var mot = "Impossible de charger les données : " + (e.message || e);
@@ -279,6 +325,16 @@
       // « entrer » se garde lui-même de partir deux fois.
       if ((evt === "SIGNED_IN" || evt === "INITIAL_SESSION") && s) { entrer(s); }
       if (evt === "SIGNED_OUT") { window.location.reload(); }
+    });
+  }
+
+  /* Le cache d'application : sans lui, un téléphone qui recharge sans réseau
+     n'affiche rien du tout. Son échec n'a aucune conséquence — la page
+     fonctionne, elle ne survivra simplement pas à un rechargement hors
+     ligne. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* tant pis */ });
     });
   }
 
