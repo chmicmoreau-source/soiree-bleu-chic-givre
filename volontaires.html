@@ -261,8 +261,8 @@
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210953"></script>
-<script src="acces.js?v=202609210953"></script>
+<script src="config.js?v=202609210956"></script>
+<script src="acces.js?v=202609210956"></script>
 <script>
 /* Le tableau des postes. Il lit le rôle et le prénom dans le classeur — la
    table « benevoles » ne sert qu'à donner à chacun l'accès à sa propre
@@ -272,7 +272,10 @@ function demarrer() {
 
   var D = window.DONNEES;
   var SVGNS = "http://www.w3.org/2000/svg";
-  var TEINTES = ["#63A6EC", "#EE9A55", "#DE7FD4", "#4FB286", "#D9A441", "#7FBDF2"];
+  /* Les memes cinq teintes que le tableau de bord, mesurees par
+     valider_palette.py. L ambre et l orange y figuraient ensemble : ils sont
+     indistinguables en protanopie. */
+  var TEINTES = ["#63A6EC", "#EE9A55", "#DE7FD4", "#4FB286", "#DCECFA"];
 
   var saisies = {}, pointage = {}, horaires = {};
 

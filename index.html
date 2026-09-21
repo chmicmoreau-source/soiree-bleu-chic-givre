@@ -419,6 +419,32 @@
   .plan-etat.bouge { animation: flash 1.2s ease-out; }
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
+  /* ---------- le visuel de l'argent ---------- */
+  .balance { display: grid; gap: 12px; }
+  .balance .un .haut {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; margin-bottom: 5px; font-size: .9rem;
+  }
+  .balance .un .haut b {
+    font-family: var(--mono); color: var(--argent); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .balance .piste {
+    height: 22px; background: rgba(99,127,166,.18);
+    border-radius: 4px; overflow: hidden; display: flex;
+  }
+  .balance .piste i { display: block; height: 100%; transition: width .4s; }
+  .balance .piste i.promis {
+    background: repeating-linear-gradient(45deg, rgba(217,164,65,.18) 0 5px,
+                                                 rgba(217,164,65,.42) 5px 10px);
+  }
+  .balance .legende-bal {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 2px 0 0;
+    font-family: var(--mono); font-size: .72rem; color: var(--median);
+  }
+  .balance .legende-bal span { display: flex; align-items: center; gap: 6px; }
+  .balance .legende-bal i { width: 11px; height: 11px; border-radius: 2px; }
+
   /* ---------- recettes et dépenses ---------- */
   .compte-resultat { width: 100%; border-collapse: collapse; font-size: .92rem; }
   .compte-resultat th, .compte-resultat td {
@@ -1012,6 +1038,18 @@
         </div>
 
         <div class="panneau">
+          <h3>Qui porte les invitations</h3>
+          <p class="sous">Personnes attendues, par organisateur.</p>
+          <div class="camembert">
+            <svg id="cam-qui" width="230" height="230" viewBox="0 0 230 230"
+                 role="img" aria-labelledby="camq-t">
+              <title id="camq-t">Répartition des personnes par organisateur</title>
+            </svg>
+            <ul class="legende" id="cam-qui-legende"></ul>
+          </div>
+        </div>
+
+        <div class="panneau">
           <h3>Qui vient</h3>
           <p class="sous">Adultes et moins de 15 ans, tarifs différents.</p>
           <div class="empilee" id="composition"></div>
@@ -1219,6 +1257,25 @@
         <span class="chiffre">116</span> et <span class="chiffre">151</span> adultes payants
         pour rentrer dans les frais.
       </p>
+      <div class="stats" style="margin-top:28px">
+        <div class="panneau">
+          <h3>Ce qui rentre, ce qui sort</h3>
+          <p class="sous">Les hachures marquent ce qui est promis sans être arrivé.</p>
+          <div class="balance" id="balance"></div>
+        </div>
+        <div class="panneau">
+          <h3>Où va l'argent</h3>
+          <p class="sous">Répartition des dépenses par poste.</p>
+          <div class="camembert">
+            <svg id="cam-depenses" width="230" height="230" viewBox="0 0 230 230"
+                 role="img" aria-labelledby="camd-t">
+              <title id="camd-t">Répartition des dépenses par poste</title>
+            </svg>
+            <ul class="legende" id="cam-depenses-legende"></ul>
+          </div>
+        </div>
+      </div>
+
       <h2 style="margin-top:34px">Recettes et dépenses</h2>
       <p class="chapeau">
         Ce qui est déjà là, et ce qui est encore promis. Les deux colonnes ne
@@ -1400,8 +1457,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210953"></script>
-<script src="acces.js?v=202609210953"></script>
+<script src="config.js?v=202609210956"></script>
+<script src="acces.js?v=202609210956"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1439,6 +1496,88 @@ function demarrer() {
     return e;
   }
   function accorde(n, un, plusieurs) { return n + " " + (Math.abs(n) > 1 ? plusieurs : un); }
+
+  /* Les cinq teintes des camemberts categoriels. Les quatre premieres passent
+     tous les controles de valider_palette.py, y compris en deuteranopie et en
+     protanopie. La cinquieme n'echoue que sur la chroma, et c'est assume : le
+     vide est hachure dans cette page, jamais colore, donc une part claire ne
+     peut pas se lire comme « rien ». Au-dela de cinq, on groupe. */
+  var TEINTES_CAT = ["#63A6EC", "#EE9A55", "#DE7FD4", "#4FB286", "#DCECFA"];
+  var AUTRES = "Autres";
+
+  /** Ramene un decompte a cinq parts au plus, le reste sous « Autres ».
+      Un camembert a sept parts n'est pas un camembert : c'est une liste mal
+      dessinee, ou les dernieres parts sont des traits. */
+  function cinqParts(compte) {
+    var noms = Object.keys(compte).filter(function (n) { return compte[n] > 0; })
+      .sort(function (a, b) { return compte[b] - compte[a]; });
+    if (noms.length <= TEINTES_CAT.length) {
+      return noms.map(function (n, i) {
+        return { nom: n, n: compte[n], couleur: TEINTES_CAT[i] };
+      });
+    }
+    var gardes = noms.slice(0, TEINTES_CAT.length - 1);
+    var reste = noms.slice(TEINTES_CAT.length - 1)
+      .reduce(function (t, n) { return t + compte[n]; }, 0);
+    var out = gardes.map(function (n, i) {
+      return { nom: n, n: compte[n], couleur: TEINTES_CAT[i] };
+    });
+    out.push({ nom: AUTRES, n: reste, couleur: "#5A6E88", hachure: true,
+               combien: noms.length - gardes.length });
+    return out;
+  }
+
+  /** Un anneau, son creux et sa legende. Le meme dessin partout : trois
+      camemberts qui se ressemblent se lisent plus vite que trois inventions. */
+  function anneau(cible, legende, parts, creuxHaut, creuxBas) {
+    cible.textContent = "";
+    var total = parts.reduce(function (t, x) { return t + x.n; }, 0);
+    var R = 84, EP = 38, C = 2 * Math.PI * R, debut = 0;
+
+    if (!total) {
+      cible.appendChild(svg("circle", { cx: 115, cy: 115, r: R, fill: "none",
+        stroke: "rgba(99,127,166,.24)", "stroke-width": EP }));
+    } else {
+      parts.forEach(function (x) {
+        if (!x.n) { return; }
+        var lon = (x.n / total) * C, esp = total > x.n ? 2 : 0;
+        var a = svg("circle", { cx: 115, cy: 115, r: R, fill: "none",
+          stroke: x.hachure ? "url(#hachure)" : x.couleur, "stroke-width": EP,
+          "stroke-dasharray": Math.max(0, lon - esp) + " " + (C - lon + esp),
+          "stroke-dashoffset": -debut, transform: "rotate(-90 115 115)" });
+        a.appendChild(svg("title", {})).textContent =
+          x.nom + " : " + x.n + " (" + pourcent.format(x.n / total) + ")";
+        cible.appendChild(a);
+        debut += lon;
+      });
+    }
+
+    var creux = svg("text", { "class": "creux", x: 115, y: 108 });
+    var gros = svg("tspan", { "class": "gros", x: 115, y: 112 });
+    gros.textContent = creuxHaut;
+    var petit = svg("tspan", { "class": "petit", x: 115, y: 133 });
+    petit.textContent = creuxBas;
+    creux.appendChild(gros);
+    creux.appendChild(petit);
+    cible.appendChild(creux);
+
+    if (!legende) { return; }
+    legende.textContent = "";
+    if (!parts.length) {
+      legende.appendChild(creer("li", "manquant", "Rien à montrer."));
+      return;
+    }
+    parts.forEach(function (x) {
+      var li = creer("li"), puce = creer("i");
+      peindre(puce, x.couleur, x.hachure);
+      li.appendChild(puce);
+      li.appendChild(creer("span", null,
+        x.nom + (x.combien ? " (" + x.combien + ")" : "")));
+      li.appendChild(creer("span", "val",
+        x.n + " · " + pourcent.format(total ? x.n / total : 0)));
+      legende.appendChild(li);
+    });
+  }
 
   /** Peint une pastille de légende. Le « non attribué » n'est pas une couleur
       de plus : c'est un vide, donc une hachure — elle se distingue même en
@@ -2356,6 +2495,17 @@ function demarrer() {
       if (g.contribution && d.hasOwnProperty(g.contribution)) { d[g.contribution] += 1; }
       else { d.sans += 1; }
     });
+    /* Le camembert des personnes par organisateur : les memes chiffres que le
+       tableau a cote, mais l ecart se voit sans compter. */
+    (function () {
+      var d = $("cam-qui");
+      if (!d) { return; }
+      var compte = {};
+      Object.keys(detail).forEach(function (n) { compte[n] = detail[n].per; });
+      var somme = Object.keys(compte).reduce(function (t, n) { return t + compte[n]; }, 0);
+      anneau(d, $("cam-qui-legende"), cinqParts(compte), String(somme), "PERSONNES");
+    })();
+
     var corps = $("quotas");
     corps.textContent = "";
     Object.keys(detail).sort(function (a, b) { return detail[b].per - detail[a].per; })
@@ -2583,6 +2733,70 @@ function demarrer() {
      est attendu ne le peut pas. Confondre les deux, c'est engager de l'argent
      qu'on n'a pas encore. */
 
+  /** Les deux barres : ce qui rentre et ce qui sort, a la meme echelle.
+      Sans echelle commune, deux barres pleines cote a cote laissent croire
+      que les montants s'equivalent. */
+  function rendreBalance(recu, du, depense) {
+    var boite = $("balance");
+    if (!boite) { return; }
+    boite.textContent = "";
+    var maxi = Math.max(du, depense, 1);
+
+    function barre(titre, ferme, promis, couleur) {
+      var un = creer("div", "un");
+      var haut = creer("div", "haut");
+      haut.appendChild(creer("span", null, titre));
+      var b = creer("b", null, euros.format(ferme)
+        + (promis > 0 ? "  + " + euros.format(promis) : ""));
+      haut.appendChild(b);
+      un.appendChild(haut);
+
+      var piste = creer("div", "piste");
+      var plein = creer("i");
+      plein.style.width = ((ferme / maxi) * 100).toFixed(1) + "%";
+      plein.style.background = couleur;
+      plein.title = titre + " — " + euros.format(ferme);
+      piste.appendChild(plein);
+      if (promis > 0) {
+        var attendu = creer("i", "promis");
+        attendu.style.width = ((promis / maxi) * 100).toFixed(1) + "%";
+        attendu.title = "promis, pas encore arrivé — " + euros.format(promis);
+        piste.appendChild(attendu);
+      }
+      un.appendChild(piste);
+      return un;
+    }
+
+    boite.appendChild(barre("Recettes", recu, Math.max(0, du - recu), "#4FB286"));
+    boite.appendChild(barre("Dépenses", depense, 0, "#EE9A55"));
+
+    var lg = creer("div", "legende-bal");
+    [["#4FB286", "encaissé"], ["#EE9A55", "dépensé"]].forEach(function (x) {
+      var sp = creer("span");
+      var i = creer("i");
+      i.style.background = x[0];
+      sp.appendChild(i);
+      sp.appendChild(document.createTextNode(x[1]));
+      lg.appendChild(sp);
+    });
+    var sp = creer("span");
+    var h = creer("i", "promis");
+    h.style.background = "repeating-linear-gradient(45deg, rgba(217,164,65,.18) 0 4px,"
+                       + " rgba(217,164,65,.42) 4px 8px)";
+    sp.appendChild(h);
+    sp.appendChild(document.createTextNode("promis"));
+    lg.appendChild(sp);
+    boite.appendChild(lg);
+  }
+
+  /** Le camembert des postes de depense : meme anneau que les autres. */
+  function rendreCamDepenses(parPoste, total) {
+    var d = $("cam-depenses");
+    if (!d) { return; }
+    anneau(d, $("cam-depenses-legende"), cinqParts(parPoste),
+           euros.format(total), "DÉPENSÉS");
+  }
+
   function rendreResultat() {
     var corps = $("compte-resultat");
     if (!corps) { return; }
@@ -2624,6 +2838,9 @@ function demarrer() {
       corps.appendChild(ligne("famille", "aucune dépense engagée", 0, null));
     }
     corps.appendChild(ligne("somme", "Total des dépenses", depense, null));
+
+    rendreBalance(recu, du, depense);
+    rendreCamDepenses(parPoste, depense);
 
     var solde = recu - depense;
     var soldeFinal = du - depense;
