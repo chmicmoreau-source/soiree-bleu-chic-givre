@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Jour J</title>
+<title>Les arrivées</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000C3C">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -143,63 +143,6 @@
   .appoints b { color: var(--argent); font-weight: 600; }
   .appoints .sous-du b { color: var(--du); }
 
-  /* ---------------- les deux onglets du soir ---------------- */
-  .jours {
-    display: flex; gap: 0; margin: 10px -16px 0;
-    border-top: 1px solid rgba(99,127,166,.22);
-  }
-  .jours button {
-    appearance: none; cursor: pointer; flex: 1 1 0;
-    background: none; color: var(--gris-bleu);
-    border: none; border-bottom: 2px solid transparent;
-    padding: 11px 6px; font-family: var(--sans); font-size: .95rem;
-  }
-  .jours button[aria-selected="true"] {
-    color: var(--givre); border-bottom-color: var(--givre); font-weight: 600;
-  }
-  .jours button:focus-visible { outline: 2px solid var(--givre); outline-offset: -2px; }
-  .jours .nb { font-family: var(--mono); font-size: .76rem; opacity: .75; margin-left: 5px; }
-  [role="tabpanel"][hidden] { display: none; }
-
-  /* ---------------- le tableau des volontaires ---------------- */
-  #volontaires { padding: 14px 16px 90px; display: grid; gap: 12px; }
-  .poste {
-    padding: 14px 15px; background: var(--nuit-clair);
-    border: 1px solid rgba(99,127,166,.28); border-left: 3px solid var(--duo-clair);
-    border-radius: 6px;
-  }
-  .poste.desert { border-left-color: var(--du); }
-  .poste h3 {
-    margin: 0 0 2px; font-family: var(--sans); font-size: 1.02rem;
-    font-weight: 600; color: var(--blanc);
-  }
-  .poste .quand {
-    display: block; font-family: var(--mono); font-size: .74rem;
-    color: var(--median); margin-bottom: 4px;
-  }
-  .poste .ou { display: block; font-size: .84rem; color: var(--gris-bleu); }
-  .poste .consigne {
-    margin: 9px 0 0; padding: 9px 11px; font-size: .86rem;
-    background: rgba(217,164,65,.12); border: 1px solid rgba(217,164,65,.38);
-    border-radius: 4px; color: var(--du);
-  }
-  .poste ul { list-style: none; margin: 11px 0 0; padding: 0; display: grid; gap: 7px; }
-  .poste li {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 8px 10px; border-radius: 4px; background: rgba(0,12,60,.45);
-    font-size: .92rem;
-  }
-  .poste li b { color: var(--argent); font-weight: 600; }
-  .poste li .foyer { font-family: var(--mono); font-size: .72rem; color: var(--median); }
-  .poste li .etat {
-    font-family: var(--mono); font-size: .72rem; white-space: nowrap;
-    padding: 2px 9px; border-radius: 999px;
-  }
-  .poste li .etat.la { color: var(--regle); border: 1px solid rgba(79,178,134,.5); }
-  .poste li .etat.pas { color: var(--gris-bleu); border: 1px solid rgba(99,127,166,.4); }
-  .poste li .etat.sansmail { color: var(--du); border: 1px solid rgba(217,164,65,.45); }
-  .poste .vide { color: var(--du); font-style: italic; font-size: .88rem; margin: 11px 0 0; }
-
   /* ---------------- recherche et filtres ---------------- */
   .outils { padding: 12px 16px 6px; }
   #q {
@@ -302,6 +245,15 @@
   #etat-saisie.vivant { color: var(--regle); border-top-color: rgba(79,178,134,.4); }
   #etat-saisie.mort { color: var(--du); border-top-color: rgba(217,164,65,.45); }
   #etat-saisie:empty { display: none; }
+
+  .vers-autre { margin: 4px 16px 90px; text-align: center; }
+  .vers-autre a {
+    display: inline-block; padding: 10px 18px;
+    background: rgba(220,236,250,.1); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.34); border-radius: 999px;
+    font-size: .88rem; text-decoration: none;
+  }
+  .vers-autre a:hover { background: rgba(220,236,250,.2); }
   #etat-saisie .attente {
     display: inline-block; margin-left: 8px; padding: 2px 9px;
     border-radius: 999px; font-family: var(--mono); font-size: .76rem;
@@ -356,7 +308,7 @@
 <div class="chapeau-jour">
   <a class="retour" href="index.html" target="_top">&larr; Accueil</a>
   <div class="titre">
-    <h1>Jour J</h1>
+    <h1>Les arrivées</h1>
     <div id="moi" hidden><span id="moi-nom"></span><button type="button" id="deconnexion">Sortir</button></div>
   </div>
 </div>
@@ -373,13 +325,8 @@
     <span><b id="encaisse-soir">0 €</b> encaissés ce soir</span>
   </div>
 
-  <nav class="jours" role="tablist" aria-label="Le soir venu">
-    <button role="tab" id="t-arrivees" aria-controls="v-arrivees" aria-selected="true">Arrivées</button>
-    <button role="tab" id="t-volontaires" aria-controls="v-volontaires" aria-selected="false">Volontaires<span class="nb" id="n-vol"></span></button>
-  </nav>
 </header>
 
-<div role="tabpanel" id="v-arrivees" aria-labelledby="t-arrivees">
 <div class="outils">
   <input type="search" id="q" placeholder="Chercher un nom…" autocomplete="off"
          aria-label="Chercher un invité par son nom">
@@ -392,17 +339,16 @@
 </div>
 
 <ul id="liste"></ul>
-</div>
 
-<div role="tabpanel" id="v-volontaires" aria-labelledby="t-volontaires" hidden>
-  <div id="volontaires"></div>
-</div>
+<p class="vers-autre">
+  <a href="volontaires.html" target="_top">Les volontaires et leurs postes &rarr;</a>
+</p>
 
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210921"></script>
-<script src="acces.js?v=202609210921"></script>
+<script src="config.js?v=202609210953"></script>
+<script src="acces.js?v=202609210953"></script>
 <script>
 /* Le soir venu : une liste, un bouton par foyer, et le compte qui monte.
 
@@ -794,116 +740,7 @@ function demarrer() {
     fiches(vus);
   }
 
-  /* ---------------- le tableau des volontaires ----------------
-
-     Le même soir, deux besoins : pointer qui arrive, et savoir qui tient quel
-     poste. Les volontaires sont des invités comme les autres — leur rôle et
-     leur prénom viennent du classeur — d'où cette lecture directe plutôt
-     qu'un aller-retour par la table « benevoles », qui n'existe que pour
-     leur donner accès à leur propre mission. */
-
-  var horaires = {};
-
-  function chargerHoraires() {
-    if (typeof window.givreTable !== "function") { return; }
-    window.givreTable("roles_infos").lire("role,debut,fin,lieu,consigne")
-      .then(function (r) {
-        if (r.error) { return; }
-        var m = {};
-        (r.data || []).forEach(function (x) { m[x.role] = x; });
-        horaires = m;
-        rendreVolontaires();
-      }).catch(function () { /* la page vit sans */ });
-  }
-
-  function rendreVolontaires() {
-    var boite = $("volontaires");
-    if (!boite) { return; }
-
-    var roles = (D.roles && D.roles.length) ? D.roles : [];
-    var par = {}, total = 0;
-    roles.forEach(function (r) { par[r] = []; });
-    var hors = [];
-
-    attendus().forEach(function (g) {
-      var o = g.origine || {};
-      var role = o.role || "";
-      if (!role) { return; }
-      total += 1;
-      var fiche = {
-        qui: o.benevole || (g.prenoms || "").split(",")[0].trim() || "quelqu'un",
-        foyer: g.nom || "", mail: o.mail || "", g: g
-      };
-      if (par[role]) { par[role].push(fiche); } else { hors.push(fiche); }
-    });
-
-    $("n-vol").textContent = total ? String(total) : "";
-
-    boite.textContent = "";
-    if (!roles.length) {
-      boite.appendChild(creer("p", "vide", "Aucun rôle n'est défini."));
-      return;
-    }
-
-    roles.concat(hors.length ? ["Rôles inconnus"] : []).forEach(function (r) {
-      var gens = (r === "Rôles inconnus") ? hors : par[r];
-      var info = horaires[r] || {};
-      var carte = creer("div", "poste" + (gens.length ? "" : " desert"));
-      carte.appendChild(creer("h3", null, r));
-
-      var quand = info.debut
-        ? (info.debut + (info.fin ? " — " + info.fin : ""))
-        : "horaire à préciser";
-      carte.appendChild(creer("span", "quand", quand));
-      if (info.lieu) { carte.appendChild(creer("span", "ou", info.lieu)); }
-
-      if (!gens.length) {
-        carte.appendChild(creer("p", "vide", "Personne sur ce poste."));
-      } else {
-        var ul = creer("ul");
-        gens.sort(function (a, b) {
-          return a.qui.localeCompare(b.qui, "fr", { sensitivity: "base" });
-        });
-        gens.forEach(function (x) {
-          var li = creer("li");
-          var bloc = creer("span");
-          bloc.appendChild(creer("b", null, x.qui));
-          if (x.foyer) { bloc.appendChild(creer("span", "foyer", " " + x.foyer)); }
-          li.appendChild(bloc);
-
-          // le même écran dit s'il est déjà arrivé : c'est tout l'intérêt
-          // d'avoir les deux onglets côte à côte
-          var la = estIci(x.g);
-          var e = creer("span", "etat " + (la ? "la" : (x.mail ? "pas" : "sansmail")),
-            la ? "arrivé" : (x.mail ? "pas encore là" : "sans adresse"));
-          if (!x.mail && !la) { e.title = "Il ne pourra pas consulter sa mission en ligne."; }
-          li.appendChild(e);
-          ul.appendChild(li);
-        });
-        carte.appendChild(ul);
-      }
-
-      if (info.consigne) { carte.appendChild(creer("p", "consigne", info.consigne)); }
-      boite.appendChild(carte);
-    });
-  }
-
   /* ---------------- brancher ---------------- */
-
-  (function () {
-    var onglets = [].slice.call(document.querySelectorAll('.jours [role="tab"]'));
-    onglets.forEach(function (b) {
-      b.addEventListener("click", function () {
-        onglets.forEach(function (x) {
-          var actif = x === b;
-          x.setAttribute("aria-selected", actif ? "true" : "false");
-          document.getElementById(x.getAttribute("aria-controls")).hidden = !actif;
-        });
-        if (b.id === "t-volontaires") { rendreVolontaires(); }
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
-    });
-  })();
 
   $("q").addEventListener("input", rendre);
   [].forEach.call(document.querySelectorAll(".chips button"), function (b) {
@@ -918,8 +755,6 @@ function demarrer() {
   });
 
   rendre();
-  rendreVolontaires();
-  chargerHoraires();
   majEtat();
 
   /* Les instantanés se FONDENT dans l'état local, ils ne le remplacent pas.
@@ -929,7 +764,6 @@ function demarrer() {
     snap.docs.forEach(function (d) { objet[d.id] = d.data() || {}; });
     cache.garder(cle, objet);
     rendre();
-    rendreVolontaires();
   }
 
   claude.use("db").then(function (db) {

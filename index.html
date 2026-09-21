@@ -897,7 +897,7 @@
     border: 1px solid rgba(99,127,166,.3); border-radius: var(--pas);
     overflow: hidden; background: var(--nuit);
   }
-  #cadre-pointage {
+  #cadre-pointage, #cadre-postes {
     display: block; width: 100%; height: 78vh; min-height: 520px;
     border: 0; background: var(--nuit);
   }
@@ -974,6 +974,7 @@
     <button role="tab" id="t-argent" aria-controls="v-argent" aria-selected="false">L'argent</button>
     <button role="tab" id="t-weekend" aria-controls="v-weekend" aria-selected="false">Le week-end</button>
       <button role="tab" id="t-porte" aria-controls="v-porte" aria-selected="false">Jour J</button>
+      <button role="tab" id="t-postes" aria-controls="v-postes" aria-selected="false">Les postes</button>
   </nav>
 
   <div class="volet" role="tabpanel" id="v-apercu" aria-labelledby="t-apercu">
@@ -1358,12 +1359,26 @@
     <section>
       <h2>Jour J</h2>
       <p class="chapeau">
-        Le pointage des arrivées et le tableau des volontaires, tels qu'ils
-        s'ouvriront sur un téléphone le soir venu.
+        Le pointage des arrivées, tel qu'il s'ouvrira sur un téléphone le soir venu.
         <a href="pointage.html" class="plein-ecran">L'ouvrir en plein écran &rarr;</a>
       </p>
       <div class="cadre-porte">
         <iframe id="cadre-pointage" data-src="pointage.html" title="Pointage des arrivées"
+                loading="lazy"></iframe>
+      </div>
+    </section>
+  </div>
+
+  <div class="volet" role="tabpanel" id="v-postes" aria-labelledby="t-postes" hidden>
+    <section>
+      <h2>Les postes</h2>
+      <p class="chapeau">
+        Qui tient quel poste, avec son horaire et son lieu. Séparé du pointage :
+        à la porte on cherche un nom, ici on regarde si une équipe est au complet.
+        <a href="volontaires.html" class="plein-ecran">L'ouvrir en plein écran &rarr;</a>
+      </p>
+      <div class="cadre-porte">
+        <iframe id="cadre-postes" data-src="volontaires.html" title="Les volontaires et leurs postes"
                 loading="lazy"></iframe>
       </div>
     </section>
@@ -1385,8 +1400,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210921"></script>
-<script src="acces.js?v=202609210921"></script>
+<script src="config.js?v=202609210953"></script>
+<script src="acces.js?v=202609210953"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1523,12 +1538,14 @@ function demarrer() {
     // seule la liste des invitations reclame toute la largeur disponible
     var cadre = document.querySelector(".page");
     if (cadre) { cadre.classList.toggle("large", id === "invitations"); }
-    if (id === "porte") {
-      var vue = document.getElementById("cadre-pointage");
+    ["porte:cadre-pointage", "postes:cadre-postes"].forEach(function (paire) {
+      var bout = paire.split(":");
+      if (id !== bout[0]) { return; }
+      var vue = document.getElementById(bout[1]);
       if (vue && !vue.getAttribute("src")) {
         vue.setAttribute("src", vue.getAttribute("data-src"));
       }
-    }
+    });
     onglets.forEach(function (b) {
       var actif = b.id === "t-" + id;
       b.setAttribute("aria-selected", actif ? "true" : "false");

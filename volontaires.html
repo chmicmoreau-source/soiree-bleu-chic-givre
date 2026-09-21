@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Les volontaires</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000C3C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+  /* Le tableau des postes, séparé du pointage des arrivées : on ne fait pas
+     les deux en même temps. À la porte on cherche un nom ; ici on regarde si
+     une équipe est au complet. Deux gestes, deux écrans. */
+  :root {
+    --nuit:        #000C3C;
+    --nuit-clair:  #001844;
+    --median:      #3F6597;
+    --gris-bleu:   #627FA6;
+    --givre:       #DCECFA;
+    --argent:      #E8E8EC;
+    --blanc:       #F0FCFC;
+    --du:      #D9A441;
+    --regle:   #4FB286;
+    --alerte:  #E68A8A;
+    --duo-clair: #7FBDF2;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans:  "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono:  "IBM Plex Mono", Consolas, ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--nuit); color: var(--blanc);
+    font-family: var(--sans); font-weight: 300; font-size: 16px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------------- la porte ---------------- */
+  #porte {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; background: var(--nuit);
+  }
+  #porte[hidden] { display: none; }
+  .porte-boite {
+    width: 100%; max-width: 420px; padding: 26px 22px;
+    background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.32); border-top: 2px solid var(--givre);
+    border-radius: 4px;
+  }
+  .porte-boite h2 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.6rem; color: var(--blanc);
+  }
+  .porte-boite .sous { margin: 6px 0 20px; color: var(--gris-bleu); font-size: .92rem; }
+  .porte-boite label {
+    display: block; font-family: var(--mono); font-size: .7rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--median);
+    margin-bottom: 5px;
+  }
+  .porte-boite input[type="email"] {
+    width: 100%; margin-bottom: 14px;
+    background: var(--nuit); color: var(--blanc);
+    border: 1px solid rgba(99,127,166,.45); border-radius: 3px;
+    padding: 13px 12px; font-family: var(--sans); font-size: 16px;
+  }
+  .porte-boite button {
+    appearance: none; cursor: pointer; width: 100%;
+    background: rgba(220,236,250,.14); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.45); border-radius: 3px;
+    padding: 14px 16px; font-family: var(--sans); font-size: 1rem; font-weight: 600;
+  }
+  .porte-mot { margin: 14px 0 0; font-size: .88rem; color: var(--gris-bleu); }
+  .porte-mot:empty { display: none; }
+  .porte-mot.raté { color: var(--alerte); }
+  #porte-attente[hidden], #porte-refus[hidden], #porte-forme[hidden] { display: none; }
+
+  /* ---------------- l'en-tête ---------------- */
+  .retour {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; margin-bottom: 10px;
+    background: rgba(220,236,250,.1); color: var(--givre);
+    border: 1px solid rgba(220,236,250,.34); border-radius: 999px;
+    font-size: .82rem; text-decoration: none; white-space: nowrap;
+  }
+  .retour:hover { background: rgba(220,236,250,.2); }
+
+  .chapeau-jour { padding: calc(12px + env(safe-area-inset-top)) 16px 0; }
+  .titre {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .titre h1 {
+    margin: 0; font-family: var(--serif); font-weight: 600;
+    font-size: 1.15rem; color: var(--givre);
+  }
+  #moi { font-family: var(--mono); font-size: .68rem; color: var(--median); }
+  #moi[hidden] { display: none; }
+  #deconnexion {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px solid rgba(99,127,166,.4); border-radius: 3px;
+    padding: 3px 8px; font-family: var(--sans); font-size: .72rem; color: var(--gris-bleu);
+    margin-left: 6px;
+  }
+
+  .barre {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--nuit); border-bottom: 1px solid rgba(99,127,166,.3);
+    padding: 10px 16px 14px;
+  }
+  .compte { display: flex; align-items: baseline; gap: 8px; }
+  .compte .gros {
+    font-family: var(--mono); font-size: 2.3rem; font-weight: 600;
+    color: var(--blanc); line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .compte .sur { color: var(--gris-bleu); font-size: .9rem; }
+  .compte .sur b { font-family: var(--mono); color: var(--argent); font-weight: 600; }
+  .appoints {
+    display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px;
+    font-family: var(--mono); font-size: .74rem; color: var(--gris-bleu);
+    font-variant-numeric: tabular-nums;
+  }
+  .appoints b { color: var(--argent); font-weight: 600; }
+  .appoints .manque b { color: var(--du); }
+
+  /* ---------------- la vue d'ensemble ---------------- */
+  .ensemble {
+    padding: 16px; display: grid; gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: center;
+  }
+  .ensemble .part { display: flex; justify-content: center; }
+  .ensemble .creux { font-family: var(--mono); fill: var(--givre); text-anchor: middle; }
+  .ensemble .creux .gros { font-size: 30px; font-weight: 600; }
+  .ensemble .creux .petit { font-size: 10px; letter-spacing: .12em; fill: #627FA6; }
+  .barres { display: grid; gap: 10px; }
+  .barres .un .haut {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: .86rem; margin-bottom: 4px;
+  }
+  .barres .un .haut b { font-family: var(--mono); color: var(--argent); font-weight: 600; }
+  .barres .piste { height: 8px; background: rgba(99,127,166,.24); border-radius: 4px; overflow: hidden; }
+  .barres .piste i { display: block; height: 100%; border-radius: 4px; transition: width .4s; }
+
+  /* ---------------- les postes ---------------- */
+  #postes { padding: 4px 16px 80px; display: grid; gap: 12px; }
+  .poste {
+    padding: 14px 15px; background: var(--nuit-clair);
+    border: 1px solid rgba(99,127,166,.28); border-left: 3px solid var(--duo-clair);
+    border-radius: 6px;
+  }
+  .poste.desert { border-left-color: var(--du); }
+  .poste.complet { border-left-color: var(--regle); }
+  .poste h3 {
+    margin: 0 0 2px; font-family: var(--sans); font-size: 1.02rem;
+    font-weight: 600; color: var(--blanc);
+  }
+  .poste .quand {
+    display: block; font-family: var(--mono); font-size: .74rem;
+    color: var(--median); margin-bottom: 4px;
+  }
+  .poste .ou { display: block; font-size: .84rem; color: var(--gris-bleu); }
+  .poste .consigne {
+    margin: 9px 0 0; padding: 9px 11px; font-size: .86rem;
+    background: rgba(217,164,65,.12); border: 1px solid rgba(217,164,65,.38);
+    border-radius: 4px; color: var(--du);
+  }
+  .poste ul { list-style: none; margin: 11px 0 0; padding: 0; display: grid; gap: 7px; }
+  .poste li {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 10px; border-radius: 4px; background: rgba(0,12,60,.45); font-size: .92rem;
+  }
+  .poste li b { color: var(--argent); font-weight: 600; }
+  .poste li .foyer { font-family: var(--mono); font-size: .72rem; color: var(--median); }
+  .poste li .etat {
+    font-family: var(--mono); font-size: .72rem; white-space: nowrap;
+    padding: 2px 9px; border-radius: 999px;
+  }
+  .poste li .etat.la { color: var(--regle); border: 1px solid rgba(79,178,134,.5); }
+  .poste li .etat.pas { color: var(--gris-bleu); border: 1px solid rgba(99,127,166,.4); }
+  .poste li .etat.sansmail { color: var(--du); border: 1px solid rgba(217,164,65,.45); }
+  .poste .vide { color: var(--du); font-style: italic; font-size: .88rem; margin: 11px 0 0; }
+
+  #etat-saisie {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+    background: rgba(0,12,60,.97); border-top: 1px solid rgba(99,127,166,.3);
+    font-size: .84rem; color: var(--gris-bleu); text-align: center;
+  }
+  #etat-saisie.vivant { color: var(--regle); border-top-color: rgba(79,178,134,.4); }
+  #etat-saisie.mort { color: var(--du); border-top-color: rgba(217,164,65,.45); }
+  #etat-saisie:empty { display: none; }
+
+  @media (min-width: 720px) {
+    .chapeau-jour, .barre, .ensemble, #postes {
+      max-width: 880px; margin-left: auto; margin-right: auto;
+    }
+    .barre { border-radius: 0 0 8px 8px; }
+  }
+  @media (min-width: 900px) {
+    #postes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<div id="porte" hidden>
+  <div class="porte-boite">
+    <h2>Les volontaires</h2>
+    <p class="sous">Qui tient quel poste. On entre par son adresse mail, sans mot de passe.</p>
+    <form id="porte-forme" hidden>
+      <label for="porte-mail">Ton adresse mail</label>
+      <input type="email" id="porte-mail" autocomplete="email" inputmode="email" required
+             placeholder="prenom@exemple.fr">
+      <button type="submit" id="porte-ok">Recevoir mon lien de connexion</button>
+    </form>
+    <div id="porte-attente" hidden>
+      <p>Un lien vient de partir vers <b id="porte-adresse"></b>.</p>
+      <p class="sous">Ouvre-le depuis cet appareil. Il ne sert qu'une fois.</p>
+    </div>
+    <div id="porte-refus" hidden>
+      <p><b id="porte-refus-mail"></b> ne fait pas partie de l'équipe.</p>
+      <p class="sous">Demande à Mickaël d'ajouter cette adresse.</p>
+    </div>
+    <p class="porte-mot" id="porte-mot"></p>
+  </div>
+</div>
+
+<div class="chapeau-jour">
+  <a class="retour" href="index.html" target="_top">&larr; Accueil</a>
+  <div class="titre">
+    <h1>Les volontaires</h1>
+    <div id="moi" hidden><span id="moi-nom"></span><button type="button" id="deconnexion">Sortir</button></div>
+  </div>
+</div>
+
+<header class="barre">
+  <div class="compte">
+    <b class="gros" id="inscrits">0</b>
+    <span class="sur">sur <b id="postes-nb">0</b> postes</span>
+  </div>
+  <div class="appoints">
+    <span><b id="postes-tenus">0</b> postes tenus</span>
+    <span class="manque"><b id="postes-vides">0</b> sans personne</span>
+    <span><b id="sans-adresse">0</b> sans adresse mail</span>
+  </div>
+</header>
+
+<div class="ensemble">
+  <div class="part">
+    <svg id="camembert" width="220" height="220" viewBox="0 0 220 220" role="img"
+         aria-labelledby="cam-t"><title id="cam-t">Répartition des volontaires par poste</title></svg>
+  </div>
+  <div class="barres" id="barres"></div>
+</div>
+
+<div id="postes"></div>
+
+<div id="etat-saisie"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js?v=202609210953"></script>
+<script src="acces.js?v=202609210953"></script>
+<script>
+/* Le tableau des postes. Il lit le rôle et le prénom dans le classeur — la
+   table « benevoles » ne sert qu'à donner à chacun l'accès à sa propre
+   mission — et croise avec le pointage du soir pour dire qui est déjà là. */
+function demarrer() {
+  "use strict";
+
+  var D = window.DONNEES;
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var TEINTES = ["#63A6EC", "#EE9A55", "#DE7FD4", "#4FB286", "#D9A441", "#7FBDF2"];
+
+  var saisies = {}, pointage = {}, horaires = {};
+
+  function $(id) { return document.getElementById(id); }
+  function creer(t, c, x) {
+    var e = document.createElement(t);
+    if (c) { e.className = c; }
+    if (x !== undefined) { e.textContent = x; }
+    return e;
+  }
+  function svg(t, a) {
+    var e = document.createElementNS(SVGNS, t);
+    for (var k in a) { e.setAttribute(k, a[k]); }
+    return e;
+  }
+  function accorde(n, un, pl) { return n + " " + (Math.abs(n) > 1 ? pl : un); }
+  function etat(c, t) { var e = $("etat-saisie"); e.className = c || ""; e.textContent = t || ""; }
+
+  function prenomsDe(g) {
+    return (g.prenoms || "").split(",").map(function (x) { return x.trim(); })
+      .filter(function (x) { return x !== ""; });
+  }
+
+  /** Les invitations vivantes, classeur et saisies fondus. */
+  function vivants() {
+    return (D.invites || []).map(function (g) {
+      var s = saisies[g.ligne] || {};
+      return {
+        cle: "L" + g.ligne,
+        nom: s.hasOwnProperty("nom") ? s.nom : g.nom,
+        prenoms: s.hasOwnProperty("prenoms") ? s.prenoms : g.prenoms,
+        statut: s.statut || g.statut,
+        retiree: s.retiree === true,
+        role: s.hasOwnProperty("role") ? s.role : (g.role || ""),
+        benevole: s.hasOwnProperty("benevole") ? s.benevole : (g.benevole || ""),
+        mail: s.hasOwnProperty("mail") ? s.mail : (g.mail || "")
+      };
+    }).filter(function (g) { return g.statut !== "Annulé" && !g.retiree; });
+  }
+
+  function parPoste() {
+    var roles = (D.roles && D.roles.length) ? D.roles : [];
+    var par = {};
+    roles.forEach(function (r) { par[r] = []; });
+    var hors = [];
+    vivants().forEach(function (g) {
+      if (!g.role) { return; }
+      var f = {
+        qui: g.benevole || prenomsDe(g)[0] || "quelqu'un",
+        foyer: g.nom || "", mail: g.mail || "", cle: g.cle
+      };
+      if (par[g.role]) { par[g.role].push(f); } else { hors.push(f); }
+    });
+    return { roles: roles, par: par, hors: hors };
+  }
+
+  /* ---------------- le camembert ---------------- */
+
+  function dessinerCamembert(roles, par, total) {
+    var d = $("camembert");
+    d.textContent = "";
+    var R = 80, EP = 34, C = 2 * Math.PI * R, debut = 0;
+
+    if (!total) {
+      d.appendChild(svg("circle", { cx: 110, cy: 110, r: R, fill: "none",
+        stroke: "rgba(99,127,166,.24)", "stroke-width": EP }));
+    } else {
+      roles.forEach(function (r, i) {
+        var n = par[r].length;
+        if (!n) { return; }
+        var lon = (n / total) * C, esp = total > n ? 2 : 0;
+        var a = svg("circle", { cx: 110, cy: 110, r: R, fill: "none",
+          stroke: TEINTES[i % TEINTES.length], "stroke-width": EP,
+          "stroke-dasharray": Math.max(0, lon - esp) + " " + (C - lon + esp),
+          "stroke-dashoffset": -debut, transform: "rotate(-90 110 110)" });
+        a.appendChild(svg("title", {})).textContent =
+          r + " : " + accorde(n, "personne", "personnes");
+        d.appendChild(a);
+        debut += lon;
+      });
+    }
+    var creux = svg("text", { "class": "creux", x: 110, y: 110 });
+    var gros = svg("tspan", { "class": "gros", x: 110, y: 108 });
+    gros.textContent = String(total);
+    var petit = svg("tspan", { "class": "petit", x: 110, y: 128 });
+    petit.textContent = total > 1 ? "VOLONTAIRES" : "VOLONTAIRE";
+    creux.appendChild(gros);
+    creux.appendChild(petit);
+    d.appendChild(creux);
+  }
+
+  function dessinerBarres(roles, par, maxi) {
+    var boite = $("barres");
+    boite.textContent = "";
+    roles.forEach(function (r, i) {
+      var n = par[r].length;
+      var un = creer("div", "un");
+      var haut = creer("div", "haut");
+      haut.appendChild(creer("span", null, r));
+      haut.appendChild(creer("b", null, String(n)));
+      un.appendChild(haut);
+      var piste = creer("div", "piste"), plein = creer("i");
+      plein.style.width = (maxi ? (n / maxi) * 100 : 0).toFixed(1) + "%";
+      plein.style.background = n ? TEINTES[i % TEINTES.length] : "rgba(217,164,65,.5)";
+      piste.appendChild(plein);
+      un.appendChild(piste);
+      boite.appendChild(un);
+    });
+  }
+
+  /* ---------------- les cartes ---------------- */
+
+  function rendre() {
+    var x = parPoste();
+    var total = 0, tenus = 0, vides = 0, sansMail = 0, maxi = 0;
+    x.roles.forEach(function (r) {
+      var n = x.par[r].length;
+      total += n;
+      maxi = Math.max(maxi, n);
+      if (n) { tenus += 1; } else { vides += 1; }
+      x.par[r].forEach(function (f) { if (!f.mail) { sansMail += 1; } });
+    });
+    x.hors.forEach(function (f) { total += 1; if (!f.mail) { sansMail += 1; } });
+
+    $("inscrits").textContent = String(total);
+    $("postes-nb").textContent = String(x.roles.length);
+    $("postes-tenus").textContent = String(tenus);
+    $("postes-vides").textContent = String(vides);
+    $("sans-adresse").textContent = String(sansMail);
+
+    dessinerCamembert(x.roles, x.par, total);
+    dessinerBarres(x.roles, x.par, maxi || 1);
+
+    var boite = $("postes");
+    boite.textContent = "";
+    x.roles.concat(x.hors.length ? ["Rôles inconnus"] : []).forEach(function (r) {
+      var gens = (r === "Rôles inconnus") ? x.hors : x.par[r];
+      var info = horaires[r] || {};
+      var carte = creer("div", "poste" + (gens.length ? " complet" : " desert"));
+      carte.appendChild(creer("h3", null, r));
+      carte.appendChild(creer("span", "quand",
+        info.debut ? (info.debut + (info.fin ? " — " + info.fin : "")) : "horaire à préciser"));
+      if (info.lieu) { carte.appendChild(creer("span", "ou", info.lieu)); }
+
+      if (!gens.length) {
+        carte.appendChild(creer("p", "vide", "Personne sur ce poste."));
+      } else {
+        var ul = creer("ul");
+        gens.sort(function (a, b) {
+          return a.qui.localeCompare(b.qui, "fr", { sensitivity: "base" });
+        });
+        gens.forEach(function (f) {
+          var li = creer("li");
+          var bloc = creer("span");
+          bloc.appendChild(creer("b", null, f.qui));
+          if (f.foyer) { bloc.appendChild(creer("span", "foyer", " " + f.foyer)); }
+          li.appendChild(bloc);
+          var p = pointage[f.cle];
+          var la = !!(p && p.arrive);
+          li.appendChild(creer("span", "etat " + (la ? "la" : (f.mail ? "pas" : "sansmail")),
+            la ? "arrivé" : (f.mail ? "pas encore là" : "sans adresse")));
+          ul.appendChild(li);
+        });
+        carte.appendChild(ul);
+      }
+      if (info.consigne) { carte.appendChild(creer("p", "consigne", info.consigne)); }
+      boite.appendChild(carte);
+    });
+  }
+
+  rendre();
+
+  if (typeof window.givreTable === "function") {
+    window.givreTable("roles_infos").lire("role,debut,fin,lieu,consigne")
+      .then(function (r) {
+        if (r.error) { return; }
+        var m = {};
+        (r.data || []).forEach(function (x) { m[x.role] = x; });
+        horaires = m;
+        rendre();
+      }).catch(function () { /* la page vit sans */ });
+  }
+
+  claude.use("db").then(function (db) {
+    if (!db) { etat("mort", "Feuille partagée indisponible."); return; }
+
+    db.collection("saisies").onSnapshot(function (snap) {
+      var neuf = {};
+      snap.docs.forEach(function (d) {
+        var c = d.data() || {}, e = {};
+        if (typeof c.role === "string") { e.role = c.role; }
+        if (typeof c.benevole === "string") { e.benevole = c.benevole; }
+        if (typeof c.mail === "string") { e.mail = c.mail; }
+        if (typeof c.nom === "string") { e.nom = c.nom; }
+        if (typeof c.prenoms === "string") { e.prenoms = c.prenoms; }
+        if (c.statut) { e.statut = c.statut; }
+        if (c.retiree === true) { e.retiree = true; }
+        neuf[d.id] = e;
+      });
+      saisies = neuf;
+      rendre();
+      etat("vivant", "À jour — ce que l'équipe change apparaît ici.");
+    }, function () { etat("mort", "La liaison s'est interrompue. Recharge la page."); });
+
+    db.collection("pointage").onSnapshot(function (snap) {
+      var neuf = {};
+      snap.docs.forEach(function (d) { neuf[d.id] = d.data() || {}; });
+      pointage = neuf;
+      rendre();
+    }, function () { /* le pointage n'est pas indispensable ici */ });
+  }).catch(function () { etat("mort", "Feuille partagée indisponible."); });
+}
+window.demarrer = demarrer;
+</script>
+</body>
+</html>
