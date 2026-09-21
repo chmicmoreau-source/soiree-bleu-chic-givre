@@ -376,6 +376,31 @@
     });
   }
 
+  /* Encadrée ou en plein écran. Une page montrée dans un onglet du tableau
+     de bord n'a pas à porter son propre bouton Accueil ni son bandeau de
+     connexion : l'onglet les porte déjà. Elle annonce en revanche sa hauteur,
+     pour que le cadre s'étire et qu'il ne reste qu'un seul ascenseur. */
+  if (window.top !== window.self) {
+    document.documentElement.classList.add("dans-cadre");
+
+    var derniereHauteur = 0;
+    var annoncerHauteur = function () {
+      var h = Math.ceil(document.documentElement.scrollHeight);
+      if (Math.abs(h - derniereHauteur) < 2) { return; }
+      derniereHauteur = h;
+      try {
+        window.parent.postMessage({ givre: "hauteur", px: h }, "*");
+      } catch (e) { /* parent d'une autre origine : le cadre restera fixe */ }
+    };
+    window.addEventListener("load", annoncerHauteur);
+    window.addEventListener("resize", annoncerHauteur);
+    if (window.ResizeObserver) {
+      new ResizeObserver(annoncerHauteur).observe(document.documentElement);
+    } else {
+      setInterval(annoncerHauteur, 700);
+    }
+  }
+
   /* Le cache d'application : sans lui, un téléphone qui recharge sans réseau
      n'affiche rien du tout. Son échec n'a aucune conséquence — la page
      fonctionne, elle ne survivra simplement pas à un rechargement hors

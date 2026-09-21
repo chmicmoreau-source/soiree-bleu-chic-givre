@@ -88,6 +88,10 @@
   .retour:hover { background: rgba(220,236,250,.2); }
 
   .chapeau-jour { padding: calc(12px + env(safe-area-inset-top)) 16px 0; }
+  /* Dans un onglet du tableau de bord : le titre, le retour et le nom de
+     l'utilisateur sont déjà au-dessus du cadre. Les répéter fait double. */
+  html.dans-cadre .chapeau-jour { display: none; }
+  html.dans-cadre .barre { position: static; }
   .titre {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 10px; margin-bottom: 8px;
@@ -261,8 +265,8 @@
 <div id="etat-saisie"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210956"></script>
-<script src="acces.js?v=202609210956"></script>
+<script src="config.js?v=202609211123"></script>
+<script src="acces.js?v=202609211123"></script>
 <script>
 /* Le tableau des postes. Il lit le rôle et le prénom dans le classeur — la
    table « benevoles » ne sert qu'à donner à chacun l'accès à sa propre

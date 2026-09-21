@@ -923,9 +923,12 @@
     border: 1px solid rgba(99,127,166,.3); border-radius: var(--pas);
     overflow: hidden; background: var(--nuit);
   }
+  /* La hauteur de depart n'est qu'une attente : la page encadree annonce
+     la sienne des qu'elle est dessinee, et le cadre s'y ajuste. Un seul
+     ascenseur, celui de la page. */
   #cadre-pointage, #cadre-postes {
-    display: block; width: 100%; height: 78vh; min-height: 520px;
-    border: 0; background: var(--nuit);
+    display: block; width: 100%; height: 620px;
+    border: 0; background: var(--nuit); transition: height .2s;
   }
 </style>
 
@@ -1457,8 +1460,24 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210956"></script>
-<script src="acces.js?v=202609210956"></script>
+<script src="config.js?v=202609211123"></script>
+<script src="acces.js?v=202609211123"></script>
+<script>
+/* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
+   cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
+   pour qu'il n'y ait jamais deux barres de défilement l'une dans l'autre. */
+window.addEventListener("message", function (e) {
+  if (e.origin !== window.location.origin) { return; }
+  var m = e.data;
+  if (!m || m.givre !== "hauteur") { return; }
+  ["cadre-pointage", "cadre-postes"].forEach(function (id) {
+    var vue = document.getElementById(id);
+    if (vue && vue.contentWindow === e.source) {
+      vue.style.height = Math.max(260, m.px) + "px";
+    }
+  });
+});
+</script>
 <script>
 function demarrer() {
   "use strict";
