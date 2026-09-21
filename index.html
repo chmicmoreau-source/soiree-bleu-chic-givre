@@ -266,6 +266,7 @@
     text-align: right; font-variant-numeric: tabular-nums;
   }
   td .dessous.reste-du { color: var(--du); }
+  td .dessous { text-align: left; white-space: normal; line-height: 1.5; max-width: 34ch; }
 
   table { border-collapse: collapse; width: 100%; font-size: .9rem; }
   th {
@@ -1384,8 +1385,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210849"></script>
-<script src="acces.js?v=202609210849"></script>
+<script src="config.js?v=202609210921"></script>
+<script src="acces.js?v=202609210921"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -1590,18 +1591,24 @@ function demarrer() {
       mesure: "reglements",
       note: "Deux relances prévues, comme l'an dernier. Chaque achat va dans l'onglet "
           + "Dépenses, avec qui l'a avancé." },
-    { id: "j4", debut: "2026-12-19", fin: "2026-12-19",
-      quand: "Samedi 19 décembre, 8 h", quoi: "Le seul créneau de préparation",
-      note: "La salle n'est à nous qu'à partir de 8 h, et la journée est prise "
-          + "ensuite : réunion l'après-midi, soirée le soir." },
+    { id: "j4", debut: "2026-12-18", fin: "2026-12-19",
+      quand: "Vendredi 18 décembre, 16 h 30", quoi: "Remise des clefs — l'installation commence",
+      mesure: "temps",
+      note: "Le contrat de location donne les clefs le vendredi à 16 h 30, avec "
+          + "état des lieux. Tout le vendredi soir est disponible pour monter les "
+          + "tables et la décoration — le samedi n'est plus le seul créneau." },
     { id: "j5", debut: "2026-12-19", fin: "2026-12-20",
       quand: "Samedi 19 décembre, 18h30", quoi: "La soirée", mesure: "personnes",
-      note: "Puis le rangement, la nuit même : la salle doit être rendue en état "
-          + "pour le lendemain matin." },
-    { id: "j6", debut: "2026-12-20", fin: "2026-12-21",
+      note: "Puis le rangement, la nuit même — non pas pour rendre la salle, mais "
+          + "parce que la fête de l'assemblée s'y installe le lendemain matin." },
+    { id: "j6", debut: "2026-12-20", fin: "2026-12-20",
       quand: "Dimanche 20 décembre, 12 h", quoi: "La salle passe à la fête de l'assemblée",
       note: "« Tour du monde », même adresse. Le dimanche matin sert à basculer la "
-          + "décoration — et il dépend de l'heure à laquelle la soirée se termine." }
+          + "décoration — et il dépend de l'heure à laquelle la soirée se termine." },
+    { id: "j7", debut: "2026-12-21", fin: "2026-12-21",
+      quand: "Lundi 21 décembre, 8 h", quoi: "Restitution des clefs",
+      note: "État des lieux de sortie, prévu au contrat. La caution de 500 € est "
+          + "rendue en fin d'année si rien n'a été signalé." }
   ];
 
   var OUVERTS_DEFAUT = [
@@ -1618,7 +1625,9 @@ function demarrer() {
             + "part revient à la soirée, quelle part à la fête ?" },
     { id: "o4", titre: "L'équipe du samedi soir",
       detail: "Ce qui manque est précis : une équipe de rangement le samedi soir, "
-            + "distincte de celle qui installe le dimanche matin." },
+            + "distincte de celle qui installe le dimanche matin. Le contrat ayant "
+            + "donné les clefs dès le vendredi 16 h 30, l'installation peut se faire "
+            + "la veille — c'est le rangement, pas le montage, qui reste tendu." },
     { id: "o5", titre: "L'alcool",
       detail: "La fête du dimanche a tranché de ne pas en servir, pour ses raisons "
             + "propres ; la soirée du samedi reste à décider." }
@@ -2396,7 +2405,7 @@ function demarrer() {
         categorie: a.categorie || null, fournisseur: a.fournisseur || null,
         montant: Number(a.montant) || 0, par: a.par || null,
         rembourse: Number(a.rembourse) || 0,
-        piece: a.piece || null,
+        piece: a.piece || null, note: a.note || null,
         source: a.versee_le ? "classeur" : "en ligne"
       });
     });
@@ -2439,7 +2448,10 @@ function demarrer() {
       if (a.retiree) { tr.className = "depense-retiree"; }
       else if (a.source === "en ligne") { tr.className = "a-verser"; }
       tr.appendChild(creer("td", null, dateCourte(a.date)));
-      tr.appendChild(creer("td", null, a.poste || "—"));
+      var tdq = creer("td", null, a.poste || "—");
+      // ce que le justificatif dit et que les colonnes ne peuvent pas porter
+      if (a.note) { tdq.appendChild(creer("span", "dessous", a.note)); }
+      tr.appendChild(tdq);
       tr.appendChild(creer("td", null, a.categorie || "—"));
       tr.appendChild(creer("td", null, a.fournisseur || "—"));
       tr.appendChild(creer("td", "nombre", euros.format(a.montant)));
