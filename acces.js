@@ -55,6 +55,9 @@
     },
     lien: function (chemin) {
       return sb.storage.from("justificatifs").createSignedUrl(chemin, 3600);
+    },
+    supprimer: function (chemin) {
+      return sb.storage.from("justificatifs").remove([chemin]);
     }
   };
 
@@ -200,7 +203,20 @@
       collection: function (col) {
         return {
           doc: function (id) {
-            return { set: function (corps) { return ecrire(col, id, corps); } };
+            return {
+              set: function (corps) { return ecrire(col, id, corps); },
+              // la base ne l'autorise que pour les depenses : une invitation
+              // porte le nom d'une personne, elle se retire, elle ne s'efface pas
+              supprimer: function () {
+                delete (cache[col] || {})[id];
+                pousser(col);
+                return sb.from("docs").delete()
+                  .eq("collection", col).eq("id", id)
+                  .then(function (r) {
+                    if (r && r.error) { throw new Error(r.error.message); }
+                  });
+              }
+            };
           },
           add: function (corps) {
             var id = (window.crypto && window.crypto.randomUUID)

@@ -1384,8 +1384,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210808"></script>
-<script src="acces.js?v=202609210808"></script>
+<script src="config.js?v=202609210842"></script>
+<script src="acces.js?v=202609210842"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2493,6 +2493,24 @@ function demarrer() {
           ecrireDepense(a.id, d);
         });
         tdg.appendChild(b);
+
+        /* La suppression n'apparait qu'apres le retrait. Deux gestes plutot
+           qu'un : le premier est reversible, le second ne l'est pas, et rien
+           ne justifie de les confondre sur une ligne qu'on vise au doigt. */
+        if (a.retiree && supprimerDepense) {
+          var sup = creer("button", "geste", "Supprimer");
+          sup.type = "button";
+          sup.title = "Effacer définitivement cette dépense";
+          sup.style.marginLeft = "6px";
+          sup.addEventListener("click", function () {
+            var quoi = (a.poste || "cette dépense") + " — " + euros.format(a.montant);
+            if (!window.confirm("Effacer définitivement « " + quoi + " » ?"
+                + (a.piece ? "\nSon justificatif sera supprimé aussi." : "")
+                + "\n\nCeci ne peut pas être annulé.")) { return; }
+            supprimerDepense(a.id, a.piece);
+          });
+          tdg.appendChild(sup);
+        }
       } else {
         // une depense deja dans le classeur ne se retire pas d'ici : elle y
         // a ses formules et son total, c'est la-bas qu'elle se corrige
@@ -2611,6 +2629,7 @@ function demarrer() {
   var attacherA = null;      // l'identifiant d'une dépense qui attend sa pièce
   var ajouterDepense = null; // posé par la feuille partagée
   var ecrireDepense = null;
+  var supprimerDepense = null;
 
   function nomDeFichier(f) {
     var propre = (f.name || "piece").replace(/[^A-Za-z0-9._-]+/g, "-").slice(-60);
@@ -4064,6 +4083,23 @@ function demarrer() {
 
       ajouterDepense = function (corps) { return colDepenses.add(corps); };
       ecrireDepense = function (id, corps) { return colDepenses.doc(id).set(corps); };
+      supprimerDepense = function (id, piece) {
+        delete achatsEnLigne[id];
+        rendreDepenses();
+        rendreResultat();
+        colDepenses.doc(id).supprimer().then(function () {
+          // le justificatif part avec : un fichier orphelin porte encore un
+          // nom sur un ticket, et ne sert plus a rien
+          if (piece && window.givreFichiers) {
+            return window.givreFichiers.supprimer(piece);
+          }
+        }).then(function () {
+          etat("vivant", "Dépense supprimée.");
+        }).catch(function (e) {
+          etat("mort", "La suppression a échoué : " + (e.message || e)
+                     + ". Recharge la page pour retrouver la ligne.");
+        });
+      };
 
       colDepenses.onSnapshot(function (snap) {
         var neuf = {};
