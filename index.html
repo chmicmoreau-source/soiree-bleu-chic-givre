@@ -418,7 +418,74 @@
   .plan-etat.bouge { animation: flash 1.2s ease-out; }
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
+  /* ---------- recettes et dépenses ---------- */
+  .compte-resultat { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .compte-resultat th, .compte-resultat td {
+    padding: 9px 12px; border-bottom: 1px solid rgba(99,127,166,.16);
+  }
+  .compte-resultat thead th {
+    font-family: var(--mono); font-size: .7rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--median); text-align: left;
+    border-bottom: 1px solid rgba(99,127,166,.3);
+  }
+  .compte-resultat td.nombre, .compte-resultat th.droite { text-align: right; }
+  .compte-resultat td.nombre {
+    font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--argent);
+  }
+  .compte-resultat tr.famille td {
+    color: var(--gris-bleu); padding-left: 28px; font-size: .88rem;
+  }
+  .compte-resultat tr.titre td {
+    font-weight: 600; color: var(--blanc);
+    border-top: 1px solid rgba(99,127,166,.3); padding-top: 14px;
+  }
+  .compte-resultat tr.somme td {
+    font-weight: 600; border-top: 1px solid rgba(99,127,166,.4);
+  }
+  .compte-resultat tr.solde td {
+    font-size: 1.05rem; font-weight: 600;
+    border-top: 2px solid rgba(99,127,166,.5); padding-top: 14px;
+  }
+  .compte-resultat .positif { color: var(--regle); }
+  .compte-resultat .negatif { color: var(--alerte); }
+  .compte-resultat .attente { color: var(--du); }
+  .resultat-mot { margin: 14px 0 0; font-size: .89rem; color: var(--gris-bleu); }
+  .resultat-mot b { color: var(--argent); font-weight: 600; }
+
   /* ---------- les dépenses ---------- */
+  .depot {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    padding: 14px 16px; margin-bottom: 16px;
+    background: rgba(127,189,242,.08);
+    border: 1px dashed rgba(127,189,242,.45); border-radius: var(--pas);
+    font-size: .89rem; color: var(--gris-bleu);
+  }
+  .depot.survol { background: rgba(127,189,242,.18); border-color: var(--duo-clair); }
+  .depot .dit { flex: 1 1 260px; }
+  .depot .dit b { color: var(--blanc); font-weight: 600; }
+  .depot label {
+    appearance: none; cursor: pointer;
+    background: rgba(127,189,242,.16); color: var(--duo-clair);
+    border: 1px solid rgba(127,189,242,.5); border-radius: 3px;
+    padding: 9px 16px; font-size: .88rem; font-weight: 600; white-space: nowrap;
+  }
+  .depot label:hover { background: rgba(127,189,242,.26); }
+  .depot input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .depot .compte { font-family: var(--mono); font-size: .78rem; }
+
+  td .piece {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--duo-clair); font-size: .8rem; text-decoration: none;
+    border-bottom: 1px solid rgba(127,189,242,.4);
+  }
+  td .piece:hover { color: var(--blanc); }
+  td .sans-piece {
+    appearance: none; cursor: pointer; background: none;
+    border: 1px dashed rgba(99,127,166,.45); border-radius: 3px;
+    padding: 3px 9px; font-size: .76rem; color: var(--median);
+  }
+  td .sans-piece:hover { color: var(--du); border-color: rgba(217,164,65,.5); }
+
   .course {
     display: grid; gap: 9px; align-items: end;
     grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
@@ -1148,11 +1215,39 @@
         <span class="chiffre">116</span> et <span class="chiffre">151</span> adultes payants
         pour rentrer dans les frais.
       </p>
+      <h2 style="margin-top:34px">Recettes et dépenses</h2>
+      <p class="chapeau">
+        Ce qui est déjà là, et ce qui est encore promis. Les deux colonnes ne
+        disent pas la même chose : l'une se dépense, l'autre s'espère.
+      </p>
+      <div class="defile">
+        <table class="compte-resultat">
+          <thead><tr>
+            <th scope="col">&nbsp;</th>
+            <th scope="col" class="droite">Encaissé</th>
+            <th scope="col" class="droite">Attendu</th>
+          </tr></thead>
+          <tbody id="compte-resultat"></tbody>
+        </table>
+      </div>
+      <p class="resultat-mot" id="resultat-mot"></p>
+
       <h2 style="margin-top:34px">Les dépenses</h2>
       <p class="chapeau">
         Tout ce qui est acheté pour la soirée, et par qui. Une dépense saisie ici
         rejoint l'onglet <em>Dépenses</em> du classeur au prochain reversement.
       </p>
+
+      <div class="depot" id="depot">
+        <div class="dit">
+          <b>Une facture, un ticket de caisse ?</b> Dépose-le ici — ou glisse-le
+          dessus. Une ligne de dépense est créée avec la pièce attachée, il ne
+          reste qu'à en compléter le montant.
+        </div>
+        <label for="d-fichier">Choisir un fichier</label>
+        <input type="file" id="d-fichier" accept="image/*,application/pdf" multiple>
+        <span class="compte" id="depot-compte"></span>
+      </div>
 
       <form class="course" id="depense-neuve">
         <div><label for="d-date">Date</label>
@@ -1180,6 +1275,7 @@
             <th scope="col" class="droite">Montant</th>
             <th scope="col">Avancé par</th>
             <th scope="col" class="droite">Remboursé</th>
+            <th scope="col">Pièce</th>
           </tr></thead>
           <tbody id="corps-depenses"></tbody>
         </table>
@@ -1285,8 +1381,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210003"></script>
-<script src="acces.js?v=202609210003"></script>
+<script src="config.js?v=202609210602"></script>
+<script src="acces.js?v=202609210602"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2340,13 +2436,40 @@ function demarrer() {
       var r = creer("td", "nombre" + (a.rembourse < a.montant ? " reste-du" : ""),
         a.rembourse ? euros.format(a.rembourse) : "—");
       tr.appendChild(r);
+
+      var tdj = creer("td");
+      if (a.piece) {
+        var lien = creer("a", "piece", a.piece.split("/").pop().slice(0, 22));
+        lien.href = "#";
+        lien.title = "Ouvrir le justificatif";
+        lien.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          // l'espace est prive : on demande un lien valable une heure
+          if (!window.givreFichiers) { return; }
+          window.givreFichiers.lien(a.piece).then(function (x) {
+            if (x.error || !x.data) { etat("mort", "Le justificatif est introuvable."); return; }
+            window.open(x.data.signedUrl, "_blank", "noopener");
+          });
+        });
+        tdj.appendChild(lien);
+      } else if (a.id) {
+        var b = creer("button", "sans-piece", "ajouter");
+        b.type = "button";
+        b.title = "Attacher une facture ou un ticket à cette dépense";
+        b.addEventListener("click", function () { attacherA = a.id; $("d-fichier").click(); });
+        tdj.appendChild(b);
+      } else {
+        tdj.appendChild(creer("span", "manquant", "—"));
+      }
+      tr.appendChild(tdj);
+
       corps.appendChild(tr);
     });
 
     if (!liste.length) {
       var vide = creer("tr");
       var td = creer("td", "manquant", "Aucune dépense pour l'instant.");
-      td.colSpan = 7;
+      td.colSpan = 8;
       vide.appendChild(td);
       corps.appendChild(vide);
     }
@@ -2367,6 +2490,164 @@ function demarrer() {
       mot.appendChild(bloc("dû à " + q, parQui[q], "du"));
     });
   }
+
+  /* ---------------- recettes et dépenses ----------------
+
+     Deux colonnes et non une : ce qui est encaissé peut se dépenser, ce qui
+     est attendu ne le peut pas. Confondre les deux, c'est engager de l'argent
+     qu'on n'a pas encore. */
+
+  function rendreResultat() {
+    var corps = $("compte-resultat");
+    if (!corps) { return; }
+    corps.textContent = "";
+
+    var v = vivants();
+    var du = 0, recu = 0;
+    v.forEach(function (g) { du += g.du; recu += (g.recu || 0); });
+
+    var achats = toutesLesDepenses();
+    var parPoste = {}, depense = 0;
+    achats.forEach(function (a) {
+      depense += a.montant;
+      var c = a.categorie || "Sans poste";
+      parPoste[c] = (parPoste[c] || 0) + a.montant;
+    });
+
+    function ligne(classe, libelle, encaisse, attendu) {
+      var tr = creer("tr", classe);
+      tr.appendChild(creer("td", null, libelle));
+      tr.appendChild(creer("td", "nombre", encaisse === null ? "—" : euros.format(encaisse)));
+      var t = creer("td", "nombre", attendu === null ? "—" : euros.format(attendu));
+      if (attendu) { t.className = "nombre attente"; }
+      tr.appendChild(t);
+      return tr;
+    }
+
+    corps.appendChild(ligne("titre", "Recettes", null, null));
+    corps.appendChild(ligne("famille",
+      "Participations — " + accorde(v.length, "invitation", "invitations"),
+      recu, Math.max(0, du - recu)));
+    corps.appendChild(ligne("somme", "Total des recettes", recu, Math.max(0, du - recu)));
+
+    corps.appendChild(ligne("titre", "Dépenses", null, null));
+    Object.keys(parPoste).sort().forEach(function (c) {
+      corps.appendChild(ligne("famille", c, parPoste[c], null));
+    });
+    if (!achats.length) {
+      corps.appendChild(ligne("famille", "aucune dépense engagée", 0, null));
+    }
+    corps.appendChild(ligne("somme", "Total des dépenses", depense, null));
+
+    var solde = recu - depense;
+    var soldeFinal = du - depense;
+    var tr = creer("tr", "solde");
+    tr.appendChild(creer("td", null, "Solde"));
+    var a = creer("td", "nombre " + (solde >= 0 ? "positif" : "negatif"), euros.format(solde));
+    tr.appendChild(a);
+    var b = creer("td", "nombre " + (soldeFinal >= 0 ? "positif" : "negatif"),
+      euros.format(soldeFinal));
+    tr.appendChild(b);
+    corps.appendChild(tr);
+
+    var mot = $("resultat-mot");
+    mot.textContent = "";
+    mot.appendChild(document.createTextNode("En caisse aujourd'hui : "));
+    mot.appendChild(creer("b", null, euros.format(solde)));
+    mot.appendChild(document.createTextNode(
+      ". Si tout ce qui est promis rentre, la soirée finit à "));
+    mot.appendChild(creer("b", null, euros.format(soldeFinal)));
+    mot.appendChild(document.createTextNode(
+      soldeFinal >= 0
+        ? ". L'édition précédente avait coûté 1 207 € le samedi."
+        : " — il manquerait de quoi couvrir les dépenses engagées."));
+  }
+
+  /* ---------------- le dépôt des justificatifs ----------------
+
+     Deux usages : déposer une pièce seule — une ligne de dépense est créée,
+     à compléter — ou l'attacher à une dépense déjà saisie. Dans les deux cas
+     le fichier va dans un espace privé, et la page ne garde que son chemin. */
+
+  var attacherA = null;      // l'identifiant d'une dépense qui attend sa pièce
+  var ajouterDepense = null; // posé par la feuille partagée
+  var ecrireDepense = null;
+
+  function nomDeFichier(f) {
+    var propre = (f.name || "piece").replace(/[^A-Za-z0-9._-]+/g, "-").slice(-60);
+    return new Date().toISOString().slice(0, 10) + "-"
+         + Math.random().toString(36).slice(2, 8) + "-" + propre;
+  }
+
+  function deposer(fichiers) {
+    if (!window.givreFichiers || !ajouterDepense) {
+      etat("mort", "Le dépôt n'est pas disponible : la feuille partagée ne répond pas.");
+      return;
+    }
+    var restant = fichiers.length, rates = 0;
+    $("depot-compte").textContent = accorde(restant, "envoi en cours", "envois en cours") + "…";
+
+    [].forEach.call(fichiers, function (f) {
+      var chemin = nomDeFichier(f);
+      window.givreFichiers.deposer(chemin, f).then(function (x) {
+        if (x.error) { throw x.error; }
+        var cible = attacherA;
+        attacherA = null;
+        if (cible && achatsEnLigne[cible]) {
+          var d = {};
+          for (var k in achatsEnLigne[cible]) { d[k] = achatsEnLigne[cible][k]; }
+          d.piece = chemin;
+          achatsEnLigne[cible] = d;
+          rendreDepenses();
+          return ecrireDepense(cible, d);
+        }
+        // une pièce seule : la dépense reste à compléter
+        return ajouterDepense({
+          date: new Date().toISOString().slice(0, 10),
+          poste: (f.name || "").replace(/\.[^.]+$/, "").slice(0, 40) || "à préciser",
+          categorie: null, fournisseur: null,
+          montant: 0, par: (window.givreMoi && window.givreMoi.nom) || null,
+          rembourse: 0, piece: chemin, retiree: false,
+          quand: new Date().toISOString()
+        });
+      }).catch(function () {
+        rates += 1;
+      }).then(function () {
+        restant -= 1;
+        if (restant > 0) { return; }
+        $("depot-compte").textContent = rates
+          ? accorde(rates, "envoi a échoué", "envois ont échoué")
+          : "";
+        etat(rates ? "mort" : "vivant", rates
+          ? "Un justificatif n'a pas pu être déposé."
+          : "Justificatif déposé — complète le montant de la ligne.");
+      });
+    });
+  }
+
+  (function () {
+    var zone = $("depot"), champ = $("d-fichier");
+    if (!zone) { return; }
+    champ.addEventListener("change", function () {
+      if (champ.files && champ.files.length) { deposer(champ.files); }
+      champ.value = "";
+    });
+    ["dragenter", "dragover"].forEach(function (e) {
+      zone.addEventListener(e, function (ev) {
+        ev.preventDefault();
+        zone.classList.add("survol");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (e) {
+      zone.addEventListener(e, function (ev) {
+        ev.preventDefault();
+        zone.classList.remove("survol");
+      });
+    });
+    zone.addEventListener("drop", function (ev) {
+      if (ev.dataTransfer && ev.dataTransfer.files.length) { deposer(ev.dataTransfer.files); }
+    });
+  })();
 
   /* ---------------- les coups de main ---------------- */
 
@@ -3542,6 +3823,7 @@ function demarrer() {
     rendreInvites();
     rendreCoups();
     rendreDepenses();
+    rendreResultat();
     rendreWeekend();
   }
 
@@ -3740,6 +4022,9 @@ function demarrer() {
       });
 
       var colDepenses = db.collection("depenses");
+
+      ajouterDepense = function (corps) { return colDepenses.add(corps); };
+      ecrireDepense = function (id, corps) { return colDepenses.doc(id).set(corps); };
 
       colDepenses.onSnapshot(function (snap) {
         var neuf = {};

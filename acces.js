@@ -45,6 +45,19 @@
   /* Un accès direct à une table autre que « docs », pour les horaires des
      rôles. La feuille partagée ne sait parler que de « docs » : plutôt que de
      tordre son contrat, on expose ici le strict nécessaire. */
+  /* Le depot des justificatifs. L'espace est prive : on ne distribue pas
+     l'adresse d'un ticket de caisse, on demande un lien de courte duree au
+     moment ou quelqu'un veut le regarder. */
+  window.givreFichiers = {
+    deposer: function (chemin, fichier) {
+      return sb.storage.from("justificatifs")
+        .upload(chemin, fichier, { upsert: true, contentType: fichier.type });
+    },
+    lien: function (chemin) {
+      return sb.storage.from("justificatifs").createSignedUrl(chemin, 3600);
+    }
+  };
+
   window.givreTable = function (nom) {
     return {
       lire: function (colonnes) { return sb.from(nom).select(colonnes || "*"); },
