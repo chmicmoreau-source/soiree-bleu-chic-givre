@@ -1384,8 +1384,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210842"></script>
-<script src="acces.js?v=202609210842"></script>
+<script src="config.js?v=202609210849"></script>
+<script src="acces.js?v=202609210849"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -3566,6 +3566,7 @@ function demarrer() {
   /* ---------------- vue « invitations » ---------------- */
 
   var ecrire = null;
+  var supprimerAjout = null;
 
   function rendreInvites() {
     var q = ($("recherche").value || "").trim().toLowerCase();
@@ -3758,6 +3759,24 @@ function demarrer() {
         : "Retirer cette invitation de la liste — réversible";
       bouton.addEventListener("click", function () { poser(g, "retiree", !g.retiree, tr); });
       tdg.appendChild(bouton);
+
+      /* La suppression ne vaut que pour une invitation nee en ligne et pas
+         encore versee : celle-la n'existe nulle part ailleurs. Une invitation
+         du classeur vit dans Excel, l'effacer ici ne l'en sortirait pas --
+         elle se passe en « Annule », ce que le reversement sait faire. */
+      if (g.nouvelle && g.retiree && supprimerAjout
+          && !(ajouts[g.docId] || {}).versee_le) {
+        var sup = creer("button", "geste", "Supprimer");
+        sup.type = "button";
+        sup.title = "Effacer définitivement cette invitation créée en ligne";
+        sup.style.marginLeft = "6px";
+        sup.addEventListener("click", function () {
+          if (!window.confirm("Effacer définitivement l'invitation « "
+              + (g.nom || "sans nom") + " » ?\n\nCeci ne peut pas être annulé.")) { return; }
+          supprimerAjout(g.docId);
+        });
+        tdg.appendChild(sup);
+      }
       tr.appendChild(tdg);
 
       corps.appendChild(tr);
@@ -4078,6 +4097,17 @@ function demarrer() {
           etat("mort", "La feuille partag\u00e9e s'est interrompue. Recharge la page.");
         });
       });
+
+      supprimerAjout = function (id) {
+        delete ajouts[id];
+        rendreTout();
+        colAjouts.doc(id).supprimer().then(function () {
+          etat("vivant", "Invitation supprimée.");
+        }).catch(function (e) {
+          etat("mort", "La suppression a échoué : " + (e.message || e)
+                     + ". Recharge la page pour retrouver la ligne.");
+        });
+      };
 
       var colDepenses = db.collection("depenses");
 
