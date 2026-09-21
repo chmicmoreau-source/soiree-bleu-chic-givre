@@ -518,6 +518,8 @@
   .course button:disabled { opacity: .4; cursor: not-allowed; }
 
   tr.a-verser td:first-child { box-shadow: inset 3px 0 0 var(--regle); }
+  tr.depense-retiree td { color: var(--gris-bleu); }
+  tr.depense-retiree td:nth-child(2) { text-decoration: line-through; }
   .avances {
     display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 0;
     font-family: var(--mono); font-size: .8rem; color: var(--gris-bleu);
@@ -1276,6 +1278,7 @@
             <th scope="col">Avancé par</th>
             <th scope="col" class="droite">Remboursé</th>
             <th scope="col">Pièce</th>
+            <th scope="col"></th>
           </tr></thead>
           <tbody id="corps-depenses"></tbody>
         </table>
@@ -1381,8 +1384,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609210602"></script>
-<script src="acces.js?v=202609210602"></script>
+<script src="config.js?v=202609210808"></script>
+<script src="acces.js?v=202609210808"></script>
 <script>
 function demarrer() {
   "use strict";
@@ -2386,12 +2389,14 @@ function demarrer() {
     });
     Object.keys(achatsEnLigne).forEach(function (id) {
       var a = achatsEnLigne[id];
-      if (a.retiree) { return; }
       out.push({
+        retiree: a.retiree === true,
+        versee: !!a.versee_le,
         id: id, date: a.date || "", poste: a.poste || "",
         categorie: a.categorie || null, fournisseur: a.fournisseur || null,
         montant: Number(a.montant) || 0, par: a.par || null,
         rembourse: Number(a.rembourse) || 0,
+        piece: a.piece || null,
         source: a.versee_le ? "classeur" : "en ligne"
       });
     });
@@ -2421,12 +2426,18 @@ function demarrer() {
     corps.textContent = "";
     var total = 0, rembourse = 0, parQui = {};
     liste.forEach(function (a) {
+      if (a.retiree) { return; }
       total += a.montant;
       rembourse += a.rembourse;
       if (a.par) { parQui[a.par] = (parQui[a.par] || 0) + (a.montant - a.rembourse); }
+      return;
+    });
+
+    liste.forEach(function (a) {
 
       var tr = creer("tr");
-      if (a.source === "en ligne") { tr.className = "a-verser"; }
+      if (a.retiree) { tr.className = "depense-retiree"; }
+      else if (a.source === "en ligne") { tr.className = "a-verser"; }
       tr.appendChild(creer("td", null, dateCourte(a.date)));
       tr.appendChild(creer("td", null, a.poste || "—"));
       tr.appendChild(creer("td", null, a.categorie || "—"));
@@ -2463,13 +2474,41 @@ function demarrer() {
       }
       tr.appendChild(tdj);
 
+      var tdg = creer("td");
+      if (a.id && !a.versee) {
+        var b = creer("button", "geste" + (a.retiree ? " rendre" : ""),
+                      a.retiree ? "Rendre" : "Retirer");
+        b.type = "button";
+        b.disabled = !ecrireDepense;
+        b.title = a.retiree
+          ? "Remettre cette dépense dans le compte"
+          : "Retirer cette dépense — réversible tant qu'elle n'est pas dans le classeur";
+        b.addEventListener("click", function () {
+          var d = {};
+          for (var k in achatsEnLigne[a.id]) { d[k] = achatsEnLigne[a.id][k]; }
+          d.retiree = !a.retiree;
+          achatsEnLigne[a.id] = d;
+          rendreDepenses();
+          rendreResultat();
+          ecrireDepense(a.id, d);
+        });
+        tdg.appendChild(b);
+      } else {
+        // une depense deja dans le classeur ne se retire pas d'ici : elle y
+        // a ses formules et son total, c'est la-bas qu'elle se corrige
+        var m = creer("span", "manquant", "dans le classeur");
+        m.title = "Cette dépense est dans l'onglet Dépenses : corrige-la là-bas.";
+        tdg.appendChild(m);
+      }
+      tr.appendChild(tdg);
+
       corps.appendChild(tr);
     });
 
     if (!liste.length) {
       var vide = creer("tr");
       var td = creer("td", "manquant", "Aucune dépense pour l'instant.");
-      td.colSpan = 8;
+      td.colSpan = 9;
       vide.appendChild(td);
       corps.appendChild(vide);
     }
