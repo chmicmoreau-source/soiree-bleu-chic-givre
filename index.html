@@ -1460,8 +1460,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609211123"></script>
-<script src="acces.js?v=202609211123"></script>
+<script src="config.js?v=202609220648"></script>
+<script src="acces.js?v=202609220648"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2330,7 +2330,10 @@ function demarrer() {
       ligne: g.ligne, cle: "L" + g.ligne, col: "saisies", docId: String(g.ligne), nouvelle: false,
       nom: s.hasOwnProperty("nom") ? s.nom : g.nom,
       prenoms: prenoms,
-      par: g.par,
+      /* Seule une chaine NON VIDE l'emporte sur le classeur. Un `null` ecrit
+         en base nous revient en chaine vide ; la prendre pour un effacement
+         voulu viderait l'invitant de toutes les lignes, une a une. */
+      par: (typeof s.par === "string" && s.par) ? s.par : g.par,
       personnes: personnes,
       moins15: moins15,
       du: Math.max(0, personnes - enfants) * TA + enfants * TE,
@@ -3902,7 +3905,20 @@ function demarrer() {
       tr.appendChild(champTexte("Prénoms, séparés par des virgules", g.prenoms, "prenoms-large", inerte,
         function (val) { poser(g, "prenoms", val, tr, { personnes: null }); }));
 
-      tr.appendChild(creer("td", null, g.par || "—"));
+      /* Qui a invite. Une invitation arrive parfois sans personne derriere
+         elle -- une saisie en ligne, une ligne reprise a la volee -- et il
+         fallait jusqu'ici ouvrir le classeur pour le dire. */
+      var tdi = creer("td");
+      var si = document.createElement("select");
+      si.setAttribute("aria-label", "Qui a invité " + (g.nom || "cette famille"));
+      remplirOrganisateurs(si, g.par || "", "personne");
+      if (!g.par) { si.className = "vide"; }
+      si.disabled = inerte;
+      si.addEventListener("change", function () {
+        poser(g, "par", si.value, tr);
+      });
+      tdi.appendChild(si);
+      tr.appendChild(tdi);
 
       tr.appendChild(champPaire(
         "Nombre de personnes", g.personnes,
@@ -4269,6 +4285,7 @@ function demarrer() {
             ancre: o.nom === undefined ? null : o.nom,
             par: aEcrire.par === undefined ? (g.par || null) : aEcrire.par,
             base: {
+              par: o.par === undefined ? null : o.par,
               nom: o.nom === undefined ? null : o.nom,
               prenoms: o.prenoms === undefined ? null : o.prenoms,
               personnes: o.personnes === undefined ? null : o.personnes,
