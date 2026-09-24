@@ -239,6 +239,27 @@
   .colonnes .col .etiq { font-size: .75rem; color: var(--gris-bleu); text-align: center; margin-top: 6px; }
   .empilee { display: flex; height: 28px; border-radius: 3px; overflow: hidden; gap: 2px; }
   .empilee i { display: block; height: 100%; }
+  /* Le vide ne se peint pas, il se hachure : une part claire pourrait se
+     confondre avec une couleur pale, des hachures jamais. */
+  .empilee i.hachure {
+    background: repeating-linear-gradient(45deg, rgba(90,110,136,.35) 0 5px,
+                                                 rgba(90,110,136,.85) 5px 10px);
+  }
+
+  /* Une barre par organisateur : meme echelle, meme origine, alignees. */
+  .parorga { display: grid; gap: 11px; }
+  .parorga .rang .haut {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; margin-bottom: 4px; font-size: .88rem;
+  }
+  .parorga .rang .haut .qui { color: var(--argent); }
+  .parorga .rang .haut .quoi { color: var(--gris-bleu); font-size: .8rem; }
+  .parorga .rang .haut .quoi b {
+    font-family: var(--mono); color: var(--argent); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .parorga .empilee { height: 18px; }
+  .parorga .vide-dit { color: var(--gris-bleu); font-size: .86rem; margin: 0; }
 
   /* ---------- tableaux ---------- */
   .defile { overflow-x: auto; }
@@ -1060,6 +1081,20 @@
         </div>
 
         <div class="panneau">
+          <h3>Qui a répondu, par organisateur</h3>
+          <p class="sous">Chaque barre est le total des invitations qu'il porte.</p>
+          <div class="parorga" id="orga-reponses"></div>
+          <ul class="legende" id="orga-reponses-legende" style="margin-top:12px"></ul>
+        </div>
+
+        <div class="panneau">
+          <h3>Qui a payé, par organisateur</h3>
+          <p class="sous">Hors invitations refusées : elles ne doivent rien.</p>
+          <div class="parorga" id="orga-paiements"></div>
+          <ul class="legende" id="orga-paiements-legende" style="margin-top:12px"></ul>
+        </div>
+
+        <div class="panneau">
           <h3>Où en sont les réponses</h3>
           <p class="sous">Une invitation reste en attente tant qu'elle n'a pas répondu.</p>
           <div class="empilee" id="statuts"></div>
@@ -1460,8 +1495,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609221602"></script>
-<script src="acces.js?v=202609221602"></script>
+<script src="config.js?v=202609241952"></script>
+<script src="acces.js?v=202609241952"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -1496,7 +1531,12 @@ function demarrer() {
   var TEINTES = { "Salé": "#63A6EC", "Spécialité": "#EE9A55", "Sucré": "#DE7FD4" };
   var VIDE = "#5A6E88";                     // le non-attribué, toujours hachuré
   var DUO = ["#7FBDF2", "#2A5E9E"];         // adultes / moins de 15 ans
-  var TEINTE_STATUT = { "Confirmé": "#4FB286", "En attente": "#D9A441", "Annulé": "#627FA6" };
+  /* Mesure sur ce fond par valider_palette.py : 17,1 d'ecart en vision
+     normale, 8,5 en deuteranopie, 11,9 en protanopie. L'ancien « Annule »
+     (#627FA6) tombait a 4,9 du vert en deuteranopie, sous le plancher de 8 :
+     acceptee et refusee se lisaient pareil. */
+  var TEINTE_STATUT = { "Confirmé": "#4FB286", "En attente": "#D9A441", "Annulé": "#5A6E88" };
+  var TEINTE_PAIE = { regle: "#4FB286", partiel: "#D9A441", rien: "#5A6E88" };
   var SVGNS = "http://www.w3.org/2000/svg";
 
   var euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
@@ -2395,25 +2435,128 @@ function demarrer() {
            ((t1 - t0) > 0.5 ? 1 : 0) + " 1 " + f[0].toFixed(2) + " " + f[1].toFixed(2);
   }
 
-  function empiler(idB, idL, series) {
+  /** Pose les segments d'une barre empilee et rend le total.
+      Chaque segment porte son libelle en infobulle : la couleur seule ne
+      doit jamais etre le seul moyen de savoir ce qu'on regarde. */
+  function segments(barre, series) {
+    barre.textContent = "";
     var total = series.reduce(function (s, x) { return s + x.n; }, 0);
-    var barre = $(idB), lst = $(idL);
-    barre.textContent = ""; lst.textContent = "";
     series.forEach(function (x) {
       if (!x.n) { return; }
       var seg = creer("i");
       seg.style.flex = x.n + " 0 0";
-      seg.style.background = x.couleur;
-      seg.title = x.nom + " : " + x.n;
+      if (x.hachure) { seg.className = "hachure"; }
+      else { seg.style.background = x.couleur; }
+      seg.title = x.nom + " : " + x.n
+        + " (" + pourcent.format(total ? x.n / total : 0) + ")";
       barre.appendChild(seg);
+    });
+    return total;
+  }
+
+  /** La legende qui va avec, dans l'ordre des segments. */
+  function legender(lst, series, total) {
+    lst.textContent = "";
+    if (!total) {
+      lst.appendChild(creer("li", "manquant", "Rien de saisi."));
+      return;
+    }
+    series.forEach(function (x) {
       var li = creer("li"), puce = creer("i");
-      puce.style.background = x.couleur;
+      peindre(puce, x.couleur, x.hachure);
       li.appendChild(puce);
       li.appendChild(creer("span", null, x.nom));
-      li.appendChild(creer("span", "val", x.n + " · " + pourcent.format(total ? x.n / total : 0)));
+      li.appendChild(creer("span", "val",
+        x.n + " · " + pourcent.format(x.n / total)));
       lst.appendChild(li);
     });
-    if (!total) { lst.appendChild(creer("li", "manquant", "Rien de saisi.")); }
+  }
+
+  function empiler(idB, idL, series) {
+    var total = segments($(idB), series);
+    legender($(idL), series, total);
+  }
+
+  /** Ce que chaque organisateur porte, et dans quel etat.
+
+      Le total seul ne dit rien : porter 71 invitations dont 12 acceptees
+      n'est pas porter 71 invitations dont 60 acceptees. Une invitation
+      refusee ne doit rien, elle sort du compte des paiements. */
+  function etatParOrganisateur() {
+    var out = {};
+    liste().forEach(function (g) {
+      if (g.retiree) { return; }        // retiree de la liste : hors compte
+      var qui = g.par || "Sans invitant";
+      var o = out[qui] || (out[qui] = {
+        total: 0, "Confirmé": 0, "En attente": 0, "Annulé": 0,
+        aPayer: 0, regle: 0, partiel: 0, rien: 0
+      });
+      o.total += 1;
+      if (o.hasOwnProperty(g.statut)) { o[g.statut] += 1; }
+      if (g.statut === "Annulé") { return; }
+
+      var recu = g.recu || 0;
+      /* Une ligne qui ne doit rien et n'a rien recu -- une invitation restee
+         vide -- ne se compte pas comme reglee : elle gonflerait la colonne
+         verte sans qu'un euro soit arrive. */
+      if (g.du <= 0 && recu <= 0 && !paye(g)) { return; }
+      o.aPayer += 1;
+      // la case du tresorier fait foi : elle dit qu'il a vu l'argent arriver
+      if (paye(g) || recu >= g.du) { o.regle += 1; }
+      else if (recu > 0) { o.partiel += 1; }
+      else { o.rien += 1; }
+    });
+    return out;
+  }
+
+  /** Une barre par personne, toutes a la meme origine.
+
+      Pas cinq camemberts : comparer cinq camemberts revient a comparer des
+      angles, ce que l'oeil fait mal. Cinq longueurs alignees, il le fait
+      sans y penser. */
+  function rendreParOrganisateur(idB, idL, etats, ordre, tete, series) {
+    var boite = $(idB);
+    if (!boite) { return; }
+    boite.textContent = "";
+    var cumul = series.map(function (x) {
+      return { nom: x.nom, n: 0, couleur: x.couleur, hachure: x.hachure };
+    });
+
+    var vus = 0;
+    ordre.forEach(function (qui) {
+      var e = etats[qui];
+      var parts = series.map(function (x) {
+        return { nom: x.nom, n: e[x.cle] || 0, couleur: x.couleur, hachure: x.hachure };
+      });
+      var total = parts.reduce(function (t, x) { return t + x.n; }, 0);
+      if (!total) { return; }
+      vus += 1;
+      parts.forEach(function (x, i) { cumul[i].n += x.n; });
+
+      var rang = creer("div", "rang");
+      var haut = creer("div", "haut");
+      haut.appendChild(creer("span", "qui", qui));
+      var quoi = creer("span", "quoi");
+      quoi.appendChild(creer("b", null, String(parts[0].n)));
+      quoi.appendChild(document.createTextNode(" " + tete + " sur " + total));
+      haut.appendChild(quoi);
+      rang.appendChild(haut);
+
+      var barre = creer("div", "empilee");
+      barre.setAttribute("role", "img");
+      barre.setAttribute("aria-label", qui + " : " + parts.map(function (x) {
+        return x.n + " " + x.nom.toLowerCase();
+      }).join(", "));
+      segments(barre, parts);
+      rang.appendChild(barre);
+      boite.appendChild(rang);
+    });
+
+    if (!vus) {
+      boite.appendChild(creer("p", "vide-dit", "Rien à montrer pour l'instant."));
+    }
+    legender($(idL), cumul,
+             cumul.reduce(function (t, x) { return t + x.n; }, 0));
   }
 
   function rendreApercu() {
@@ -2526,6 +2669,28 @@ function demarrer() {
       Object.keys(detail).forEach(function (n) { compte[n] = detail[n].per; });
       var somme = Object.keys(compte).reduce(function (t, n) { return t + compte[n]; }, 0);
       anneau(d, $("cam-qui-legende"), cinqParts(compte), String(somme), "PERSONNES");
+    })();
+
+    /* Les deux barres par organisateur. Meme ordre dans les deux, celui du
+       tableau juste au-dessus : l'oeil retrouve la meme personne a la meme
+       hauteur d'un graphique a l'autre. */
+    (function () {
+      var etats = etatParOrganisateur();
+      var ordre = Object.keys(etats).sort(function (a, b) {
+        return etats[b].total - etats[a].total;
+      });
+      rendreParOrganisateur("orga-reponses", "orga-reponses-legende",
+        etats, ordre, "acceptées", [
+          { cle: "Confirmé", nom: "Acceptées", couleur: TEINTE_STATUT["Confirmé"] },
+          { cle: "En attente", nom: "En attente", couleur: TEINTE_STATUT["En attente"] },
+          { cle: "Annulé", nom: "Refusées", couleur: TEINTE_STATUT["Annulé"] }
+        ]);
+      rendreParOrganisateur("orga-paiements", "orga-paiements-legende",
+        etats, ordre, "réglées", [
+          { cle: "regle", nom: "Réglées", couleur: TEINTE_PAIE.regle },
+          { cle: "partiel", nom: "Partiellement", couleur: TEINTE_PAIE.partiel },
+          { cle: "rien", nom: "Rien reçu", couleur: TEINTE_PAIE.rien, hachure: true }
+        ]);
     })();
 
     var corps = $("quotas");
