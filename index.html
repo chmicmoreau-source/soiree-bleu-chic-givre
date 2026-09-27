@@ -262,6 +262,14 @@
   .parorga .vide-dit { color: var(--gris-bleu); font-size: .86rem; margin: 0; }
 
   /* Deux boutons colles : l'etat se lit sans ouvrir quoi que ce soit. */
+  .vers-liste {
+    appearance: none; cursor: pointer; background: none; padding: 0;
+    border: 0; border-bottom: 1px dotted rgba(220,236,250,.5);
+    font-family: var(--sans); font-size: .82rem; color: var(--givre);
+  }
+  .vers-liste:hover { color: var(--blanc); border-bottom-color: var(--blanc); }
+  .vers-liste:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
+
   .bascule { display: inline-flex; border-radius: 999px; overflow: hidden;
              border: 1px solid rgba(99,127,166,.4); }
   .bascule button {
@@ -1158,6 +1166,7 @@
           <option value="confirme">Acceptées</option>
           <option value="refuse">Refusées</option>
           <option value="du">Reste à payer</option>
+          <option value="sansmoyen">Encaissé sans moyen</option>
           <option value="retirees">Retirées</option>
         </select>
         <span class="groupe-tri">
@@ -1529,8 +1538,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271520"></script>
-<script src="acces.js?v=202609271520"></script>
+<script src="config.js?v=202609271528"></script>
+<script src="acces.js?v=202609271528"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -3064,6 +3073,15 @@ function demarrer() {
 
   var SANS_MOYEN = "Moyen non précisé";
 
+  /** De l'argent est noté sur cette ligne, sans qu'on sache par où il est
+      passé. Une seule definition, partagee par l'anneau et par le filtre :
+      deux regles voisines finiraient par diverger. */
+  function sansMoyen(g) {
+    if ((g.recu || 0) <= 0 && !paye(g)) { return false; }
+    var m = ((paiements[clePaiement(g)] || {}).moyen || g.moyen || "").trim();
+    return !m || m === "Non réglé";
+  }
+
   /** Par quel chemin l'argent est arrive.
 
       On compte les MONTANTS, pas les paiements : quinze Wero a 8 EUR et un
@@ -3079,8 +3097,9 @@ function demarrer() {
     vivants().forEach(function (g) {
       var recu = g.recu || 0;
       if (recu <= 0 && !paye(g)) { return; }
-      var m = ((paiements[clePaiement(g)] || {}).moyen || g.moyen || "").trim();
-      if (!m || m === "Non réglé") { m = SANS_MOYEN; }
+      var m = sansMoyen(g)
+        ? SANS_MOYEN
+        : ((paiements[clePaiement(g)] || {}).moyen || g.moyen || "").trim();
       montants[m] = (montants[m] || 0) + recu;
       combien[m] = (combien[m] || 0) + 1;
       total += recu;
@@ -3093,6 +3112,21 @@ function demarrer() {
     });
     anneau(cible, $("cam-moyens-legende"), parts,
            euros.format(total), "ENCAISSÉS", euros.format);
+
+    /* Un trou n'est pas une categorie a contempler : c'est une chose a
+       corriger. La legende y mene. */
+    if (montants[SANS_MOYEN]) {
+      var ou = creer("li");
+      var lien = creer("button", "vers-liste", "voir les lignes à compléter");
+      lien.type = "button";
+      lien.addEventListener("click", function () {
+        $("filtre-etat").value = "sansmoyen";
+        montrer("invitations");
+        rendreInvites();
+      });
+      ou.appendChild(lien);
+      $("cam-moyens-legende").appendChild(ou);
+    }
   }
 
   function rendreResultat() {
@@ -4135,6 +4169,9 @@ function demarrer() {
       if (fetat === "confirme" && g.statut !== "Confirmé") { return false; }
       if (fetat === "refuse" && g.statut !== "Annulé") { return false; }
       if (fetat === "du" && (g.du - (g.recu || 0)) <= 0) { return false; }
+      // de l'argent note, mais par quel chemin ? Ni la case du trésorier ni
+      // la colonne « Règlement » ne le disent.
+      if (fetat === "sansmoyen" && !sansMoyen(g)) { return false; }
       if (q && ((g.nom || "") + " " + (g.prenoms || "")).toLowerCase().indexOf(q) < 0) { return false; }
       return true;
     });
