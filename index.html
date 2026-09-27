@@ -1501,8 +1501,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271032"></script>
-<script src="acces.js?v=202609271032"></script>
+<script src="config.js?v=202609271209"></script>
+<script src="acces.js?v=202609271209"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2802,7 +2802,7 @@ function demarrer() {
         id: id, date: a.date || "", poste: a.poste || "",
         categorie: a.categorie || null, fournisseur: a.fournisseur || null,
         montant: Number(a.montant) || 0, par: a.par || null,
-        rembourse: Number(a.rembourse) || 0,
+        rembourse: a.rembourse === true || a.rembourse === "Oui",
         piece: a.piece || null, note: a.note || null,
         source: a.versee_le ? "classeur" : "en ligne"
       });
@@ -2835,9 +2835,9 @@ function demarrer() {
     liste.forEach(function (a) {
       if (a.retiree) { return; }
       total += a.montant;
-      rembourse += a.rembourse;
-      if (a.par) { parQui[a.par] = (parQui[a.par] || 0) + (a.montant - a.rembourse); }
-      return;
+      if (a.rembourse) { rembourse += a.montant; return; }
+      // ce qui reste du a celui qui a avance
+      if (a.par) { parQui[a.par] = (parQui[a.par] || 0) + a.montant; }
     });
 
     liste.forEach(function (a) {
@@ -2854,8 +2854,8 @@ function demarrer() {
       tr.appendChild(creer("td", null, a.fournisseur || "—"));
       tr.appendChild(creer("td", "nombre", euros.format(a.montant)));
       tr.appendChild(creer("td", null, a.par || "—"));
-      var r = creer("td", "nombre" + (a.rembourse < a.montant ? " reste-du" : ""),
-        a.rembourse ? euros.format(a.rembourse) : "—");
+      var r = creer("td", a.rembourse ? null : "reste-du",
+        a.rembourse ? "remboursé" : (a.par ? "à rembourser" : "—"));
       tr.appendChild(r);
 
       var tdj = creer("td");
@@ -3142,7 +3142,7 @@ function demarrer() {
           poste: (f.name || "").replace(/\.[^.]+$/, "").slice(0, 40) || "à préciser",
           categorie: null, fournisseur: null,
           montant: 0, par: (window.givreMoi && window.givreMoi.nom) || null,
-          rembourse: 0, piece: chemin, retiree: false,
+          rembourse: false, piece: chemin, retiree: false,
           quand: new Date().toISOString()
         });
       }).catch(function () {
@@ -4679,7 +4679,7 @@ function demarrer() {
             fournisseur: $("d-fournisseur").value.trim() || null,
             montant: montant,
             par: $("d-par").value || null,
-            rembourse: 0,
+            rembourse: false,
             retiree: false,
             quand: new Date().toISOString()
           }).then(function () {
