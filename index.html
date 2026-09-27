@@ -1501,8 +1501,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271209"></script>
-<script src="acces.js?v=202609271209"></script>
+<script src="config.js?v=202609271238"></script>
+<script src="acces.js?v=202609271238"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2796,6 +2796,10 @@ function demarrer() {
     });
     Object.keys(achatsEnLigne).forEach(function (id) {
       var a = achatsEnLigne[id];
+      /* Versee, elle est deja dans D.achats ci-dessus : la garder ici la
+         compterait deux fois, et le total avec elle. Meme defaut que sur les
+         invitations, meme cause -- le reversement marque, il n efface pas. */
+      if (a.versee_le) { return; }
       out.push({
         retiree: a.retiree === true,
         versee: !!a.versee_le,
