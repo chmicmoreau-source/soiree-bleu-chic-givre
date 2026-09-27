@@ -1538,8 +1538,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271528"></script>
-<script src="acces.js?v=202609271528"></script>
+<script src="config.js?v=202609271607"></script>
+<script src="acces.js?v=202609271607"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2143,7 +2143,7 @@ function demarrer() {
       texte = jours > 0 ? accorde(jours, "jour restant", "jours restants")
                         : (jours === 0 ? "dernier jour" : "période passée");
     } else {
-      var lu = m.lire(vivants());
+      var lu = m.lire(invites());
       fait = lu.fait;
       total = lu.total;
       argent = lu.argent === true;
@@ -2506,6 +2506,15 @@ function demarrer() {
   }
   function retirees() { return liste().filter(function (g) { return g.retiree; }); }
 
+  /** Les invitations proprement dites : sans l'equipe.
+
+      Un organisateur ou un DJ occupe une place mais n'a pas ete invite. Il
+      n'apporte pas de plat, ne repond pas, ne regle rien. Le laisser dans le
+      buffet et dans les reponses fabrique des manques qui n'en sont pas.
+      Pour tout ce qui parle d'occupation -- personnes attendues, jauge --
+      c'est « vivants() » qu'il faut, et il y figure. */
+  function invites() { return vivants().filter(function (g) { return !estEquipe(g); }); }
+
   /* ---------------- vue « où on en est » ---------------- */
 
   function pointArc(cx, cy, r, t) {
@@ -2569,6 +2578,7 @@ function demarrer() {
     var out = {};
     liste().forEach(function (g) {
       if (g.retiree) { return; }        // retiree de la liste : hors compte
+      if (estEquipe(g)) { return; }     // elle n'a ni repondu ni paye : c'est elle qui recoit
       var qui = g.par || "Sans invitant";
       var o = out[qui] || (out[qui] = {
         total: 0, "Confirmé": 0, "En attente": 0, "Annulé": 0,
@@ -2734,8 +2744,12 @@ function demarrer() {
           return pourcent.format(D.parts[n] || 0) + " " + n.toLowerCase();
         }).join(", ") + ".";
 
+    /* Qui porte combien d'invitations. L'equipe n'en porte pas : sa propre
+       ligne ajouterait une personne a son compte sans qu'elle ait invite
+       quiconque. Elle reste en revanche dans « personnes », plus haut, car
+       elle occupe bien une place. */
     var detail = {};
-    v.forEach(function (g) {
+    invites().forEach(function (g) {
       var qui = g.par || "Sans invitant";
       var d = detail[qui] || (detail[qui] = { inv: 0, per: 0, "Salé": 0, "Sucré": 0, "Spécialité": 0, sans: 0 });
       d.inv += 1;
@@ -2813,7 +2827,11 @@ function demarrer() {
       { nom: "Moins de 15 ans", n: enfants, couleur: DUO[1] }
     ]);
     var parStatut = {};
-    liste().forEach(function (g) { parStatut[g.statut] = (parStatut[g.statut] || 0) + 1; });
+    // « liste() » pour garder les annulees, sans l'equipe qui n'a rien a repondre
+    liste().forEach(function (g) {
+      if (estEquipe(g)) { return; }
+      parStatut[g.statut] = (parStatut[g.statut] || 0) + 1;
+    });
     empiler("statuts", "statuts-legende", REPONSES.map(function (r) {
       return { nom: r.mot, n: parStatut[r.code] || 0, couleur: TEINTE_STATUT[r.code] };
     }));
@@ -3793,7 +3811,7 @@ function demarrer() {
   }
 
   function rendreBuffet() {
-    var v = vivants();
+    var v = invites();      // l'equipe n'apporte pas de plat
     var compte = { "Salé": 0, "Sucré": 0, "Spécialité": 0 }, sans = 0;
     v.forEach(function (g) {
       if (g.contribution && compte.hasOwnProperty(g.contribution)) { compte[g.contribution] += 1; }
@@ -4419,7 +4437,7 @@ function demarrer() {
     $("compte-lignes").textContent = vus.length === tout.length
       ? accorde(tout.length, "invitation", "invitations")
       : vus.length + " sur " + tout.length;
-    var sans = vivants().filter(function (g) { return !g.contribution; }).length;
+    var sans = invites().filter(function (g) { return !g.contribution; }).length;
     $("badge-invit").textContent = sans ? String(sans) : "";
   }
 
