@@ -1501,8 +1501,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271020"></script>
-<script src="acces.js?v=202609271020"></script>
+<script src="config.js?v=202609271032"></script>
+<script src="acces.js?v=202609271032"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2375,23 +2375,21 @@ function demarrer() {
     return Math.max(0, personnes - enfants) * TA + enfants * TE;
   }
 
-  /** Sans accents ni casse : « ÉMILIE » et « Emilie » sont la meme personne. */
-  function aplati(x) {
-    var t = (x || "").toString().trim().toLowerCase();
-    return t.normalize ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : t;
-  }
+  /* « Offert » porte trois etats, et le classeur les dit lui-meme :
 
-  /** La ligne d'un organisateur : offerte, et a son propre nom.
+       vide     -- invite ordinaire, il paie sa place ;
+       Oui      -- invite qui ne paie pas. Les LEMOINE pretent la salle : ils
+                   recoivent une invitation, y repondent, peuvent apporter un
+                   plat. Seules les colonnes d'argent sont sans objet ;
+       Équipe   -- organisateur ou DJ. Il ne recoit pas d'invitation, ne se
+                   repond pas a lui-meme et ne paie pas : les sept colonnes
+                   sont sans objet.
 
-      On ne s'envoie pas d'invitation et on ne se repond pas : six colonnes
-      n'ont rien a dire ici. Un invite d'honneur, lui, n'est pas concerne --
-      il ne paie pas, mais il repond et peut apporter un plat. */
-  function estOrganisateur(g) {
-    if (!g.offert) { return false; }
-    var nom = aplati(g.nom);
-    if (!nom) { return false; }
-    return D.invites.some(function (x) { return x.par && aplati(x.par) === nom; });
-  }
+     C'est une lecture, plus une devinette : on reconnaissait un organisateur
+     a ce que sa ligne portait son propre nom, ce qui tombait des qu'il la
+     renommait et ne disait rien des DJ. */
+  var EQUIPE = "Équipe";
+  function estEquipe(g) { return (g.offert || "") === EQUIPE; }
 
   function fusion(g) {
     var s = saisies[g.ligne] || {};
@@ -2400,7 +2398,10 @@ function demarrer() {
       ? s.personnes
       : (s.hasOwnProperty("prenoms") ? comptePrenoms(prenoms) : g.personnes);
     var moins15 = s.hasOwnProperty("moins15") ? s.moins15 : (g.moins15 || 0);
-    var offert = s.hasOwnProperty("offert") ? s.offert === true : g.offert === true;
+    /* Comme pour l'invitant : un champ ecrit a null revient de la base en
+       chaine vide. Seule une valeur NON VIDE l'emporte sur le classeur,
+       sinon une sauvegarde suffirait a rendre tout le monde payant. */
+    var offert = (typeof s.offert === "string" && s.offert) ? s.offert : (g.offert || "");
     var statut = s.statut || g.statut;
     return {
       ligne: g.ligne, cle: "L" + g.ligne, col: "saisies", docId: String(g.ligne), nouvelle: false,
@@ -2433,7 +2434,7 @@ function demarrer() {
     var personnes = (typeof a.personnes === "number" && a.personnes !== null)
       ? a.personnes : comptePrenoms(prenoms);
     var moins15 = typeof a.moins15 === "number" ? a.moins15 : 0;
-    var offert = a.offert === true;
+    var offert = a.offert || "";
     return {
       ligne: null, cle: id, col: "ajouts", docId: id, nouvelle: true,
       nom: a.nom || "", prenoms: prenoms, par: a.par || null,
@@ -4137,28 +4138,29 @@ function demarrer() {
 
       /* Offert : ne doit rien. Deux cas, et deux seulement -- celui qu'on
          invite (les LEMOINE, qui pretent la salle) et ceux qui organisent. */
-      var tdo = creer("td");
-      var co = document.createElement("input");
-      co.type = "checkbox";
-      co.checked = g.offert === true;
-      co.disabled = inerte;
-      co.setAttribute("aria-label", "Offert — ne paie pas — " + (g.nom || ""));
-      co.title = g.offert
-        ? "Ne paie rien"
-        : "Cocher pour que cette invitation ne doive rien";
+      var equipe = estEquipe(g);
+      // une case sans objet ne se remplit pas, meme par accident
+      var muet = inerte || equipe;
+
+      var tdo = creer("td", equipe ? "sans-objet" : null);
+      var co = document.createElement("select");
+      co.setAttribute("aria-label", "Qui paie — " + (g.nom || ""));
+      [["", "il paie"], ["Oui", "offert"], [EQUIPE, "équipe"]].forEach(function (x) {
+        var o = creer("option", "", x[1]);
+        o.value = x[0];
+        if ((g.offert || "") === x[0]) { o.selected = true; }
+        co.appendChild(o);
+      });
+      co.disabled = muet;
       co.addEventListener("change", function () {
-        poser(g, "offert", co.checked, tr);
+        poser(g, "offert", co.value, tr);
       });
       tdo.appendChild(co);
       tr.appendChild(tdo);
 
-      var orga = estOrganisateur(g);
-      // une case sans objet ne se remplit pas, meme par accident
-      var muet = inerte || orga;
-
       // contribution
       var tdc = creer("td");
-      if (orga) { tdc.className = "sans-objet"; }
+      if (equipe) { tdc.className = "sans-objet"; }
       var sc = document.createElement("select");
       sc.setAttribute("aria-label", "Contribution de " + g.nom);
       [""].concat(CONTRIBUTIONS).forEach(function (val) {
@@ -4177,7 +4179,7 @@ function demarrer() {
       // invitation envoyée
       var tde = coche("Invitation envoyée à " + g.nom, g.envoyee, muet,
         function (etat) { poser(g, "envoyee", etat, tr); });
-      if (orga) { tde.className += " sans-objet"; }
+      if (equipe) { tde.className += " sans-objet"; }
       tr.appendChild(tde);
 
       // réponse : les trois états s'excluent, donc une liste et non trois cases
@@ -4192,7 +4194,7 @@ function demarrer() {
         ss.appendChild(o);
       });
       ss.disabled = muet;
-      if (orga) { tds.className = "sans-objet"; }
+      if (equipe) { tds.className = "sans-objet"; }
       ss.addEventListener("change", function () { poser(g, "statut", ss.value, tr); });
       tds.appendChild(ss);
       tr.appendChild(tds);
@@ -4539,7 +4541,7 @@ function demarrer() {
             mail: aEcrire.mail === undefined ? null : aEcrire.mail,
             statut: aEcrire.statut === undefined ? null : aEcrire.statut,
             recu: aEcrire.recu === undefined ? null : aEcrire.recu,
-            offert: aEcrire.offert === true,
+            offert: aEcrire.offert === undefined ? (g.offert || "") : aEcrire.offert,
             nom: aEcrire.nom === undefined ? null : aEcrire.nom,
             prenoms: aEcrire.prenoms === undefined ? null : aEcrire.prenoms,
             personnes: aEcrire.personnes === undefined ? null : aEcrire.personnes,
