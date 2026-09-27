@@ -1496,8 +1496,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609270918"></script>
-<script src="acces.js?v=202609270918"></script>
+<script src="config.js?v=202609270944"></script>
+<script src="acces.js?v=202609270944"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2429,7 +2429,12 @@ function demarrer() {
 
   function liste() {
     var base = D.invites.map(fusion);
-    var sup = Object.keys(ajouts).map(function (id) { return fusionAjout(id, ajouts[id]); });
+    /* « versee_le » dit que cette invitation a rejoint le classeur : elle est
+       desormais dans D.invites, et la compter aussi comme un ajout la ferait
+       apparaitre deux fois -- deux places dans la salle, deux fois le montant. */
+    var sup = Object.keys(ajouts)
+      .filter(function (id) { return !ajouts[id].versee_le; })
+      .map(function (id) { return fusionAjout(id, ajouts[id]); });
     return base.concat(sup);
   }
   // « vivants » = ce qui compte vraiment : ni annulé, ni retiré de la liste
