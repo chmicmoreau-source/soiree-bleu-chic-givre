@@ -1173,6 +1173,7 @@
             <th scope="col">Prénoms</th>
             <th scope="col">Par</th>
             <th scope="col" class="droite" title="Nombre de personnes, dont celles de moins de 15 ans">Pers. / −15</th>
+            <th scope="col" title="Ne paie pas : invité d honneur, organisateur">Offert</th>
             <th scope="col">Contribution</th>
             <th scope="col" class="milieu">Envoyée</th>
             <th scope="col">Réponse</th>
@@ -1495,8 +1496,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609241952"></script>
-<script src="acces.js?v=202609241952"></script>
+<script src="config.js?v=202609270918"></script>
+<script src="acces.js?v=202609270918"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2358,6 +2359,17 @@ function demarrer() {
     return texte.split(",").filter(function (x) { return x.trim() !== ""; }).length;
   }
 
+  /* Ce que doit une invitation. Le classeur met zero sur deux motifs :
+     « Annule », qui ne vient pas, et « Offert », qui vient sans payer -- les
+     LEMOINE qui pretent la salle, les organisateurs. La page calcule pareil,
+     faute de quoi les deux totaux divergent et plus personne ne sait lequel
+     croire. */
+  function duDe(personnes, moins15, offert, statut) {
+    if (offert || statut === "Annulé") { return 0; }
+    var enfants = Math.min(moins15, personnes);
+    return Math.max(0, personnes - enfants) * TA + enfants * TE;
+  }
+
   function fusion(g) {
     var s = saisies[g.ligne] || {};
     var prenoms = s.hasOwnProperty("prenoms") ? s.prenoms : g.prenoms;
@@ -2365,9 +2377,11 @@ function demarrer() {
       ? s.personnes
       : (s.hasOwnProperty("prenoms") ? comptePrenoms(prenoms) : g.personnes);
     var moins15 = s.hasOwnProperty("moins15") ? s.moins15 : (g.moins15 || 0);
-    var enfants = Math.min(moins15, personnes);
+    var offert = s.hasOwnProperty("offert") ? s.offert === true : g.offert === true;
+    var statut = s.statut || g.statut;
     return {
       ligne: g.ligne, cle: "L" + g.ligne, col: "saisies", docId: String(g.ligne), nouvelle: false,
+      offert: offert,
       nom: s.hasOwnProperty("nom") ? s.nom : g.nom,
       prenoms: prenoms,
       /* Seule une chaine NON VIDE l'emporte sur le classeur. Un `null` ecrit
@@ -2376,7 +2390,7 @@ function demarrer() {
       par: (typeof s.par === "string" && s.par) ? s.par : g.par,
       personnes: personnes,
       moins15: moins15,
-      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      du: duDe(personnes, moins15, offert, statut),
       contribution: s.hasOwnProperty("contribution") ? s.contribution : g.contribution,
       role: s.hasOwnProperty("role") ? s.role : (g.role || ""),
       benevole: s.hasOwnProperty("benevole") ? s.benevole : (g.benevole || ""),
@@ -2396,12 +2410,13 @@ function demarrer() {
     var personnes = (typeof a.personnes === "number" && a.personnes !== null)
       ? a.personnes : comptePrenoms(prenoms);
     var moins15 = typeof a.moins15 === "number" ? a.moins15 : 0;
-    var enfants = Math.min(moins15, personnes);
+    var offert = a.offert === true;
     return {
       ligne: null, cle: id, col: "ajouts", docId: id, nouvelle: true,
       nom: a.nom || "", prenoms: prenoms, par: a.par || null,
+      offert: offert,
       personnes: personnes, moins15: moins15,
-      du: Math.max(0, personnes - enfants) * TA + enfants * TE,
+      du: duDe(personnes, moins15, offert, a.statut || "En attente"),
       contribution: a.contribution || null,
       role: a.role || "", benevole: a.benevole || "", mail: a.mail || "",
       moyen: a.moyen || "",
@@ -4051,7 +4066,7 @@ function demarrer() {
     corps.textContent = "";
     if (!vus.length) {
       var trv = creer("tr"), tdv = creer("td", "manquant", "Aucune invitation ne correspond.");
-      tdv.colSpan = 12;
+      tdv.colSpan = 13;
       trv.appendChild(tdv);
       corps.appendChild(trv);
     }
@@ -4091,6 +4106,23 @@ function demarrer() {
         "Dont moins de 15 ans", g.moins15,
         function (val) { poser(g, "moins15", val, tr); },
         inerte));
+
+      /* Offert : ne doit rien. Deux cas, et deux seulement -- celui qu'on
+         invite (les LEMOINE, qui pretent la salle) et ceux qui organisent. */
+      var tdo = creer("td");
+      var co = document.createElement("input");
+      co.type = "checkbox";
+      co.checked = g.offert === true;
+      co.disabled = inerte;
+      co.setAttribute("aria-label", "Offert — ne paie pas — " + (g.nom || ""));
+      co.title = g.offert
+        ? "Ne paie rien"
+        : "Cocher pour que cette invitation ne doive rien";
+      co.addEventListener("change", function () {
+        poser(g, "offert", co.checked, tr);
+      });
+      tdo.appendChild(co);
+      tr.appendChild(tdo);
 
       // contribution
       var tdc = creer("td");
@@ -4460,7 +4492,8 @@ function demarrer() {
               benevole: o.benevole === undefined ? null : o.benevole,
               mail: o.mail === undefined ? null : o.mail,
               statut: o.statut === undefined ? null : o.statut,
-              recu: o.recu === undefined ? null : o.recu
+              recu: o.recu === undefined ? null : o.recu,
+              offert: o.offert === undefined ? null : o.offert
             },
             contribution: aEcrire.contribution === undefined ? null : aEcrire.contribution,
             role: aEcrire.role === undefined ? null : aEcrire.role,
@@ -4468,6 +4501,7 @@ function demarrer() {
             mail: aEcrire.mail === undefined ? null : aEcrire.mail,
             statut: aEcrire.statut === undefined ? null : aEcrire.statut,
             recu: aEcrire.recu === undefined ? null : aEcrire.recu,
+            offert: aEcrire.offert === true,
             nom: aEcrire.nom === undefined ? null : aEcrire.nom,
             prenoms: aEcrire.prenoms === undefined ? null : aEcrire.prenoms,
             personnes: aEcrire.personnes === undefined ? null : aEcrire.personnes,
