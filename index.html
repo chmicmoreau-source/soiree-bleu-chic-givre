@@ -261,6 +261,11 @@
   .parorga .empilee { height: 18px; }
   .parorga .vide-dit { color: var(--gris-bleu); font-size: .86rem; margin: 0; }
 
+  /* Une cellule sans objet : elle existe, elle s'aligne, mais elle ne
+     demande rien. Le gris dit « pas cette ligne-ci », pas « interdit ». */
+  td.sans-objet { opacity: .3; }
+  td.sans-objet input, td.sans-objet select { pointer-events: none; }
+
   /* ---------- tableaux ---------- */
   .defile { overflow-x: auto; }
 
@@ -1496,8 +1501,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609270944"></script>
-<script src="acces.js?v=202609270944"></script>
+<script src="config.js?v=202609271004"></script>
+<script src="acces.js?v=202609271004"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2368,6 +2373,24 @@ function demarrer() {
     if (offert || statut === "Annulé") { return 0; }
     var enfants = Math.min(moins15, personnes);
     return Math.max(0, personnes - enfants) * TA + enfants * TE;
+  }
+
+  /** Sans accents ni casse : « ÉMILIE » et « Emilie » sont la meme personne. */
+  function aplati(x) {
+    var t = (x || "").toString().trim().toLowerCase();
+    return t.normalize ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : t;
+  }
+
+  /** La ligne d'un organisateur : offerte, et a son propre nom.
+
+      On ne s'envoie pas d'invitation et on ne se repond pas : six colonnes
+      n'ont rien a dire ici. Un invite d'honneur, lui, n'est pas concerne --
+      il ne paie pas, mais il repond et peut apporter un plat. */
+  function estOrganisateur(g) {
+    if (!g.offert) { return false; }
+    var nom = aplati(g.nom);
+    if (!nom) { return false; }
+    return D.invites.some(function (x) { return x.par && aplati(x.par) === nom; });
   }
 
   function fusion(g) {
@@ -4129,8 +4152,13 @@ function demarrer() {
       tdo.appendChild(co);
       tr.appendChild(tdo);
 
+      var orga = estOrganisateur(g);
+      // une case sans objet ne se remplit pas, meme par accident
+      var muet = inerte || orga;
+
       // contribution
       var tdc = creer("td");
+      if (orga) { tdc.className = "sans-objet"; }
       var sc = document.createElement("select");
       sc.setAttribute("aria-label", "Contribution de " + g.nom);
       [""].concat(CONTRIBUTIONS).forEach(function (val) {
@@ -4147,8 +4175,10 @@ function demarrer() {
       tr.appendChild(tdc);
 
       // invitation envoyée
-      tr.appendChild(coche("Invitation envoyée à " + g.nom, g.envoyee, !ecrire || g.retiree,
-        function (etat) { poser(g, "envoyee", etat, tr); }));
+      var tde = coche("Invitation envoyée à " + g.nom, g.envoyee, muet,
+        function (etat) { poser(g, "envoyee", etat, tr); });
+      if (orga) { tde.className += " sans-objet"; }
+      tr.appendChild(tde);
 
       // réponse : les trois états s'excluent, donc une liste et non trois cases
       var tds = creer("td");
@@ -4161,18 +4191,21 @@ function demarrer() {
         if (g.statut === r.code) { o.selected = true; }
         ss.appendChild(o);
       });
-      ss.disabled = !ecrire || g.retiree;
+      ss.disabled = muet;
+      if (orga) { tds.className = "sans-objet"; }
       ss.addEventListener("change", function () { poser(g, "statut", ss.value, tr); });
       tds.appendChild(ss);
       tr.appendChild(tds);
 
       // règlement reçu en entier
       var solde = (g.recu || 0) >= g.du && g.du > 0;
-      tr.appendChild(coche("Règlement reçu de " + g.nom, solde, !ecrire || g.retiree,
-        function (etat) { poser(g, "recu", etat ? g.du : 0, tr); }));
+      var tdso = coche("Règlement reçu de " + g.nom, solde, inerte || g.offert,
+        function (etat) { poser(g, "recu", etat ? g.du : 0, tr); });
+      if (g.offert) { tdso.className += " sans-objet"; }
+      tr.appendChild(tdso);
 
       // montant exact, pour les règlements partiels
-      var tdr = creer("td", "nombre");
+      var tdr = creer("td", "nombre" + (g.offert ? " sans-objet" : ""));
       var ir = document.createElement("input");
       ir.type = "number";
       ir.min = "0";
@@ -4180,7 +4213,7 @@ function demarrer() {
       ir.value = g.recu ? String(g.recu) : "";
       ir.placeholder = "0";
       ir.setAttribute("aria-label", "Montant reçu de " + g.nom);
-      ir.disabled = !ecrire || g.retiree;
+      ir.disabled = inerte || g.offert;
       var minuteur = null;
       ir.addEventListener("input", function () {
         clearTimeout(minuteur);
@@ -4192,16 +4225,16 @@ function demarrer() {
 
       var reste = g.du - (g.recu || 0);
       var sous = creer("span", "dessous" + (reste > 0 ? " reste-du" : ""),
-        reste > 0 ? "reste " + euros.format(reste) : "soldé");
+        g.offert ? "offert" : (reste > 0 ? "reste " + euros.format(reste) : "soldé"));
       tdr.appendChild(sous);
 
       tr.appendChild(tdr);
 
       // la confirmation du trésorier : visible par tous, cochable par lui seul
       var tdp = coche("Paiement reçu de " + g.nom, paye(g),
-        !jeSuisTresorier() || g.retiree,
+        !jeSuisTresorier() || g.retiree || g.offert,
         function (etat) { poserPaiement(g, etat, tr); });
-      tdp.className = "coche tresor";
+      tdp.className = "coche tresor" + (g.offert ? " sans-objet" : "");
 
       // le moyen n'a de sens qu'une fois l'argent arrivé
       if (paye(g)) {
