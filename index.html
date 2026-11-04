@@ -469,6 +469,23 @@
   .plan-etat.bouge { animation: flash 1.2s ease-out; }
   .plan li.bouge { animation: flash 1.2s ease-out; }
 
+  /* La caisse : une soustraction, pas un graphique. */
+  .caisse { display: grid; gap: 2px; }
+  .caisse .l {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 14px; padding: 6px 0; font-size: .92rem;
+  }
+  .caisse .l span { color: var(--gris-bleu); }
+  .caisse .l b {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    color: var(--argent); font-weight: 600; white-space: nowrap;
+  }
+  .caisse .l .qui { color: var(--median); font-size: .78rem; }
+  .caisse .trait { border-top: 1px solid rgba(99,127,166,.4); margin-top: 4px; }
+  .caisse .total span, .caisse .total b { color: var(--blanc); font-size: 1.05rem; }
+  .caisse .total b.manque { color: var(--alerte); }
+  .caisse .dit { margin: 10px 0 0; font-size: .84rem; color: var(--gris-bleu); }
+
   /* ---------- le visuel de l'argent ---------- */
   .balance { display: grid; gap: 12px; }
   .balance .un .haut {
@@ -1328,6 +1345,12 @@
       </p>
       <div class="stats" style="margin-top:28px">
         <div class="panneau">
+          <h3>La caisse</h3>
+          <p class="sous">Ce qui est arrivé, moins ce qu'on doit déjà.</p>
+          <div class="caisse" id="caisse"></div>
+        </div>
+
+        <div class="panneau">
           <h3>Ce qui rentre, ce qui sort</h3>
           <p class="sous">Les hachures marquent ce qui est promis sans être arrivé.</p>
           <div class="balance" id="balance"></div>
@@ -1538,8 +1561,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202609271607"></script>
-<script src="acces.js?v=202609271607"></script>
+<script src="config.js?v=202611042141"></script>
+<script src="acces.js?v=202611042141"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -3025,6 +3048,57 @@ function demarrer() {
      est attendu ne le peut pas. Confondre les deux, c'est engager de l'argent
      qu'on n'a pas encore. */
 
+  /** Ce qui est rentre, face a ce qu'on doit deja.
+
+      « recu » est l'argent arrive. « avances » est ce que des organisateurs
+      ont sorti de leur poche et qu'on ne leur a pas rendu. « engage » est
+      une depense decidee que personne n'a encore payee -- le solde de la
+      salle, par exemple. Ce qui reste est ce qu'on peut engager sans que
+      quelqu'un remette la main a la poche. */
+  function rendreCaisse(recu, achats) {
+    var boite = $("caisse");
+    if (!boite) { return; }
+    boite.textContent = "";
+
+    var avances = 0, engage = 0, parQui = {};
+    achats.forEach(function (a) {
+      if (a.retiree || a.rembourse) { return; }
+      if (a.par) {
+        avances += a.montant;
+        parQui[a.par] = (parQui[a.par] || 0) + a.montant;
+      } else {
+        engage += a.montant;        // décidé, pas encore payé
+      }
+    });
+    var reste = recu - avances - engage;
+
+    function ligne(titre, valeur, classe, qui) {
+      var l = creer("div", "l" + (classe ? " " + classe : ""));
+      var g = creer("span", null, titre);
+      if (qui) { g.appendChild(creer("span", "qui", " · " + qui)); }
+      l.appendChild(g);
+      l.appendChild(creer("b", valeur < 0 && classe === "total" ? "manque" : null,
+                          euros.format(valeur)));
+      boite.appendChild(l);
+      return l;
+    }
+
+    ligne("Encaissé", recu);
+    var noms = Object.keys(parQui).sort(function (a, b) { return parQui[b] - parQui[a]; });
+    ligne("À rembourser", -avances, null,
+          noms.map(function (n) { return n + " " + euros.format(parQui[n]); }).join(", "));
+    ligne("Reste à payer", -engage, null,
+          engage ? "dépenses engagées que personne n'a avancées" : "");
+    boite.appendChild(creer("div", "trait"));
+    ligne("Disponible", reste, "total");
+
+    boite.appendChild(creer("p", "dit", reste >= 0
+      ? "De quoi rembourser tout le monde dès aujourd'hui, et il resterait "
+        + euros.format(reste) + "."
+      : "Il manque " + euros.format(-reste)
+        + " pour rembourser tout le monde : il faut attendre les règlements."));
+  }
+
   /** Les deux barres : ce qui rentre et ce qui sort, a la meme echelle.
       Sans echelle commune, deux barres pleines cote a cote laissent croire
       que les montants s'equivalent. */
@@ -3190,6 +3264,7 @@ function demarrer() {
     corps.appendChild(ligne("somme", "Total des dépenses", depense, null));
 
     rendreBalance(recu, du, depense);
+    rendreCaisse(recu, achats);
     rendreCamMoyens();
     rendreCamDepenses(parPoste, depense);
 
