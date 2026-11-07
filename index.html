@@ -1561,8 +1561,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611042158"></script>
-<script src="acces.js?v=202611042158"></script>
+<script src="config.js?v=202611071231"></script>
+<script src="acces.js?v=202611071231"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -1847,7 +1847,9 @@ function demarrer() {
     }
     var jl = Math.ceil((LIMITE - m) / 86400000);
     $("limite").textContent = jl > 0 ? accorde(jl, "jour", "jours") + " avant le 19 octobre"
-      : (jl === 0 ? "échéance aujourd'hui" : accorde(-jl, "jour de retard", "jours de retard"));
+      : (jl === 0 ? "échéance du 19 octobre : c'est aujourd'hui"
+                  : accorde(-jl, "jour de retard sur le 19 octobre",
+                                 "jours de retard sur le 19 octobre"));
   }
   battre();
   setInterval(battre, 1000);
@@ -2758,10 +2760,14 @@ function demarrer() {
 
     $("titre-quotas").textContent = "Les " + QUOTA + " places de chacun";
     $("th-ecart").textContent = "Écart à " + QUOTA;
+    /* « moins 0 organisateur » ne soustrait rien : depuis qu'ils sont dans
+       la liste, ce nombre vaut zéro. On ne garde la soustraction que
+       lorsqu'elle a lieu. */
     $("sous-quotas").textContent =
-      places + " places à distribuer — " + jauge + " dans la salle moins "
-      + accorde(orga, "organisateur qui ne se compte pas lui-même",
-                      "organisateurs qui ne se comptent pas eux-mêmes")
+      places + " places à distribuer — " + jauge + " dans la salle"
+      + (orga ? " moins " + accorde(orga, "organisateur qui ne se compte pas lui-même",
+                                          "organisateurs qui ne se comptent pas eux-mêmes")
+              : "")
       + ", pour " + accorde(nbOrga, "personne qui invite", "personnes qui invitent")
       + ". Répartition visée du buffet : "
       + CONTRIBUTIONS.map(function (n) {
