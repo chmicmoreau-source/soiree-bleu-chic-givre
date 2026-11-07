@@ -303,6 +303,10 @@
   #v-invitations table { font-size: .86rem; }
   #v-invitations td, #v-invitations th { padding-left: 7px; padding-right: 7px; }
   #v-invitations td select, #v-invitations td input[type="number"] { min-width: 0; }
+  /* « Séverine » tronqué en « Séver » : lisible tant qu'il n'y a qu'un
+     prénom par initiale, illisible le jour où il y en a deux. Cette
+     colonne-là garde de quoi écrire le plus long des noms. */
+  #v-invitations td select.inv-par { min-width: 7.4em; }
   #v-invitations td input.nom-large { min-width: 0; width: 100%; }
   #v-invitations td input.prenoms-large { min-width: 0; width: 100%; }
 
@@ -1561,8 +1565,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611071236"></script>
-<script src="acces.js?v=202611071236"></script>
+<script src="config.js?v=202611071250"></script>
+<script src="acces.js?v=202611071250"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -4329,7 +4333,7 @@ function demarrer() {
       var si = document.createElement("select");
       si.setAttribute("aria-label", "Qui a invité " + (g.nom || "cette famille"));
       remplirOrganisateurs(si, g.par || "", "personne");
-      if (!g.par) { si.className = "vide"; }
+      si.className = "inv-par" + (g.par ? "" : " vide");
       si.disabled = inerte;
       si.addEventListener("change", function () {
         poser(g, "par", si.value, tr);
