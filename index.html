@@ -290,6 +290,16 @@
   td.sans-objet { opacity: .3; }
   td.sans-objet input, td.sans-objet select { pointer-events: none; }
 
+  .voir-plus {
+    display: block; width: 100%; margin: 12px 0 0; padding: 10px;
+    appearance: none; cursor: pointer; border-radius: var(--pas);
+    background: rgba(220,236,250,.08); color: var(--givre);
+    border: 1px dashed rgba(220,236,250,.34);
+    font-family: var(--sans); font-size: .9rem;
+  }
+  .voir-plus:hover { background: rgba(220,236,250,.16); color: var(--blanc); }
+  .voir-plus:focus-visible { outline: 2px solid var(--givre); outline-offset: 2px; }
+
   /* ---------- tableaux ---------- */
   .defile { overflow-x: auto; }
 
@@ -1565,8 +1575,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611071250"></script>
-<script src="acces.js?v=202611071250"></script>
+<script src="config.js?v=202611071310"></script>
+<script src="acces.js?v=202611071310"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -4303,6 +4313,10 @@ function demarrer() {
         + ". Rien n'est perdu : choisis « Retirées » dans le filtre d'état pour les revoir et les rendre."
       : "";
 
+    /* On ne dessine qu'une tranche. « vus » reste entier : les compteurs,
+       la recherche et les filtres continuent de parler de toute la liste. */
+    var montres = toutMontrer ? vus : vus.slice(0, PAR_TRANCHE);
+
     var corps = $("corps-invites");
     corps.textContent = "";
     if (!vus.length) {
@@ -4312,7 +4326,7 @@ function demarrer() {
       corps.appendChild(trv);
     }
 
-    vus.forEach(function (g) {
+    montres.forEach(function (g) {
       var tr = creer("tr");
       if (g.retiree) { tr.className = "retiree"; }
       else if (g.statut === "Annulé") { tr.className = "annulee"; }
@@ -4523,12 +4537,28 @@ function demarrer() {
       corps.appendChild(tr);
     });
 
+    var pied = $("voir-plus");
+    if (pied) { pied.remove(); }
+    if (montres.length < vus.length) {
+      var b = creer("button", "voir-plus",
+        "Afficher les " + (vus.length - montres.length) + " invitations suivantes");
+      b.type = "button";
+      b.id = "voir-plus";
+      b.addEventListener("click", function () { toutMontrer = true; rendreInvites(); });
+      corps.closest(".defile").insertAdjacentElement("afterend", b);
+    }
+
     $("compte-lignes").textContent = vus.length === tout.length
       ? accorde(tout.length, "invitation", "invitations")
       : vus.length + " sur " + tout.length;
     var sans = invites().filter(function (g) { return !g.contribution; }).length;
     $("badge-invit").textContent = sans ? String(sans) : "";
   }
+
+  /* Soixante lignes : de quoi remplir deux écrans sans attendre. Au-delà on
+     cherche plutôt qu'on ne fait défiler. */
+  var PAR_TRANCHE = 60;
+  var toutMontrer = false;
 
   // ordre logique des réponses, qui n'est pas l'ordre alphabétique
   var RANG_REPONSE = { "En attente": 0, "Confirmé": 1, "Annulé": 2 };
@@ -4610,8 +4640,11 @@ function demarrer() {
     });
   })();
 
+  /* Changer de filtre, c'est repartir d'une page blanche : on revient à la
+     première tranche. Sans cela, une recherche à cinq résultats laisserait
+     « tout montrer » actif, et l'effacer redessinerait les cent quarante. */
   ["recherche", "filtre-par", "filtre-contrib", "filtre-etat", "tri", "tri2"].forEach(function (id) {
-    $(id).addEventListener("input", rendreInvites);
+    $(id).addEventListener("input", function () { toutMontrer = false; rendreInvites(); });
   });
   $("raz").addEventListener("click", function () {
     $("recherche").value = "";
