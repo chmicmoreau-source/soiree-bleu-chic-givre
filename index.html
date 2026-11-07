@@ -1561,8 +1561,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611071231"></script>
-<script src="acces.js?v=202611071231"></script>
+<script src="config.js?v=202611071236"></script>
+<script src="acces.js?v=202611071236"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -4184,8 +4184,11 @@ function demarrer() {
       var m = {};
       (r.data || []).forEach(function (x) { m[String(x.ligne)] = x; });
       paiements = m;
-      rendreInvites();
-      rendreArgent();
+      /* Tout redessiner, et non la seule liste : les camemberts de l'argent
+         se peignaient avant que les paiements arrivent, et attribuaient donc
+         à « moyen non précisé » tout ce que seule cette table connaît. Un
+         tiers des encaissements semblait venir de nulle part. */
+      rendreTout();
     }).catch(function () { /* la page vit sans */ });
   }
 
