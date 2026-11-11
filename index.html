@@ -1065,6 +1065,7 @@
 </header>
 
 <div class="rebours">
+  <div class="bloc" id="bloc-mois"><b id="mo">—</b><span>mois</span></div>
   <div class="bloc"><b id="j">—</b><span>jours</span></div>
   <div class="bloc"><b id="h">—</b><span>heures</span></div>
   <div class="bloc"><b id="m">—</b><span>min</span></div>
@@ -1575,8 +1576,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611071310"></script>
-<script src="acces.js?v=202611071310"></script>
+<script src="config.js?v=202611111526"></script>
+<script src="acces.js?v=202611111526"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -1848,12 +1849,38 @@ function demarrer() {
   /* ---------------- compte à rebours ---------------- */
 
   function deux(n) { return (n < 10 ? "0" : "") + n; }
+
+  /* Un mois n'a pas de duree fixe : on avance de mois en mois tant qu'on ne
+     depasse pas la soiree, puis on compte les jours qui restent. Decaler le
+     quantieme ferait deborder (31 janvier + 1 mois), donc on passe par le
+     premier du mois et on ramene le quantieme au dernier jour disponible. */
+  function ajouterMois(d, n) {
+    var quantieme = d.getDate(), r = new Date(d.getTime());
+    r.setDate(1);
+    r.setMonth(r.getMonth() + n);
+    var dernier = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+    r.setDate(Math.min(quantieme, dernier));
+    r.setHours(d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+    return r;
+  }
+
+  function moisEntiers(de, a) {
+    var n = 0;
+    while (ajouterMois(de, n + 1) <= a) { n++; }
+    return n;
+  }
+
   function battre() {
     var m = new Date(), reste = SOIREE - m;
     if (reste <= 0) {
-      ["j", "h", "m", "s"].forEach(function (k) { $(k).textContent = "—"; });
+      ["mo", "j", "h", "m", "s"].forEach(function (k) { $(k).textContent = "—"; });
+      $("bloc-mois").hidden = true;
     } else {
-      var sec = Math.floor(reste / 1000);
+      var mois = moisEntiers(m, SOIREE);
+      var sec = Math.floor((SOIREE - ajouterMois(m, mois)) / 1000);
+      $("mo").textContent = mois;
+      // le dernier mois, « 0 mois » n'apprend rien : le bloc s'efface
+      $("bloc-mois").hidden = mois === 0;
       $("j").textContent = Math.floor(sec / 86400);
       $("h").textContent = deux(Math.floor(sec / 3600) % 24);
       $("m").textContent = deux(Math.floor(sec / 60) % 60);
