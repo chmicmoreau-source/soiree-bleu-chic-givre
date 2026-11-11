@@ -1576,8 +1576,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111526"></script>
-<script src="acces.js?v=202611111526"></script>
+<script src="config.js?v=202611111531"></script>
+<script src="acces.js?v=202611111531"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -1886,7 +1886,12 @@ function demarrer() {
       $("m").textContent = deux(Math.floor(sec / 60) % 60);
       $("s").textContent = deux(sec % 60);
     }
-    var jl = Math.ceil((LIMITE - m) / 86400000);
+    // de date a date : deux minuits, jamais deux instants -- sinon la
+    // journee en cours disparait et l'ecart perd un jour
+    var minuit = new Date(m.getFullYear(), m.getMonth(), m.getDate());
+    var minuitLimite = new Date(LIMITE.getFullYear(), LIMITE.getMonth(),
+                                LIMITE.getDate());
+    var jl = Math.round((minuitLimite - minuit) / 86400000);
     $("limite").textContent = jl > 0 ? accorde(jl, "jour", "jours") + " avant le 19 octobre"
       : (jl === 0 ? "échéance du 19 octobre : c'est aujourd'hui"
                   : accorde(-jl, "jour de retard sur le 19 octobre",
