@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Bleu, Chic &amp; Givré</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -98,6 +99,7 @@
   .rebours span { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gris-bleu); }
   .rebours .sep { color: var(--median); }
   .rebours .limite { font-size: .85rem; color: var(--du); font-family: var(--sans); }
+  .rebours .limite.alerte { color: var(--alerte); font-weight: 600; }
 
   /* ---------- onglets ---------- */
   .onglets {
@@ -1576,8 +1578,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111531"></script>
-<script src="acces.js?v=202611111531"></script>
+<script src="config.js?v=202611111556"></script>
+<script src="acces.js?v=202611111556"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -1600,7 +1602,6 @@ function demarrer() {
 
   var D = DONNEES;
   var SOIREE = new Date(2026, 11, 19, 18, 30, 0);
-  var LIMITE = new Date(2026, 9, 19, 23, 59, 59);
   var CONTRIBUTIONS = ["Salé", "Sucré", "Spécialité"];
   // le classeur dit « Confirmé / En attente / Annulé » ; la page parle
   // la langue des organisateurs, la correspondance tient dans ce tableau
@@ -1886,16 +1887,6 @@ function demarrer() {
       $("m").textContent = deux(Math.floor(sec / 60) % 60);
       $("s").textContent = deux(sec % 60);
     }
-    // de date a date : deux minuits, jamais deux instants -- sinon la
-    // journee en cours disparait et l'ecart perd un jour
-    var minuit = new Date(m.getFullYear(), m.getMonth(), m.getDate());
-    var minuitLimite = new Date(LIMITE.getFullYear(), LIMITE.getMonth(),
-                                LIMITE.getDate());
-    var jl = Math.round((minuitLimite - minuit) / 86400000);
-    $("limite").textContent = jl > 0 ? accorde(jl, "jour", "jours") + " avant le 19 octobre"
-      : (jl === 0 ? "échéance du 19 octobre : c'est aujourd'hui"
-                  : accorde(-jl, "jour de retard sur le 19 octobre",
-                                 "jours de retard sur le 19 octobre"));
   }
   battre();
   setInterval(battre, 1000);
@@ -4699,7 +4690,37 @@ function demarrer() {
 
   /* ---------------- rendu global ---------------- */
 
+  /* La ligne du bandeau : le point qui bloque, et rien d'autre.
+
+     Une salle qui deborde prime sur tout -- c'est la seule chose qui
+     interdit d'inviter encore. Une fois la jauge tenue, ce qui reste a
+     faire rentrer prend le relais. */
+  function rendreLimite() {
+    var e = $("limite");
+    if (!e) { return; }
+    var places = 0;
+    vivants().forEach(function (g) { places += g.personnes; });
+    var jauge = D.jauge || 0;
+    if (jauge && places > jauge) {
+      e.className = "limite alerte";
+      e.textContent = places + " personnes pour " + jauge + " places · "
+        + (places - jauge) + " de trop";
+      return;
+    }
+    var reste = 0;
+    invites().forEach(function (g) {
+      reste += duDe(g.personnes, g.moins15, g.offert, g.statut) - (+g.recu || 0);
+    });
+    e.className = "limite";
+    if (reste > 0.005) {
+      e.textContent = euros.format(reste) + " encore à encaisser";
+    } else {
+      e.textContent = "tout est réglé";
+    }
+  }
+
   function rendreTout() {
+    rendreLimite();
     rendreApercu();
     rendreBuffet();
     rendreArgent();
