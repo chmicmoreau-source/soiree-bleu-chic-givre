@@ -1578,8 +1578,8 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="config.js?v=202611111629"></script>
-<script src="acces.js?v=202611111629"></script>
+<script src="config.js?v=202611111634"></script>
+<script src="acces.js?v=202611111634"></script>
 <script>
 /* Les onglets « Jour J » et « Les postes » montrent de vraies pages dans un
    cadre. Chacune annonce sa hauteur une fois dessinée ; le cadre s'y ajuste,
@@ -2982,12 +2982,12 @@ function demarrer() {
       tr.appendChild(creer("td", null, a.fournisseur || "—"));
       tr.appendChild(creer("td", "nombre", euros.format(a.montant)));
       tr.appendChild(creer("td", null, a.par || "—"));
-      /* « a rembourser » suppose une dette. Pour celui qui tient la caisse
-         il n'y en a pas : il retient son avance sur ce qu'il detient. */
+      /* Pour celui qui tient la caisse, la depense est simplement payee :
+         elle est sortie du meme compte ou les participations arrivent. */
       var r = creer("td", a.rembourse ? null : "reste-du",
         a.rembourse ? "remboursé"
           : (!a.par ? "—"
-             : (a.par === CAISSIER ? "avancé" : "à rendre")));
+             : (a.par === CAISSIER ? "payé" : "à rendre")));
       tr.appendChild(r);
 
       var tdj = creer("td");
@@ -3138,29 +3138,29 @@ function demarrer() {
 
     ligne("Encaissé", recu);
     var noms = Object.keys(parQui).sort(function (a, b) { return parQui[b] - parQui[a]; });
-    ligne("Avancé", -avances, null,
+    ligne("Déjà dépensé", -avances, null,
           noms.map(function (n) { return n + " " + euros.format(parQui[n]); }).join(", "));
     ligne("Reste à payer", -engage, null,
           engage ? "dépenses engagées que personne n'a avancées" : "");
     boite.appendChild(creer("div", "trait"));
     ligne("Disponible", reste, "total");
 
-    /* Celui qui tient la caisse n'a rien a reclamer : il retient son avance
-       sur l'argent qu'il detient deja. Les autres, eux, attendent. */
+    /* Les entrees et les sorties passent par le meme compte : rien n'est
+       avance, rien n'est du. Qui a paye quoi ne se reglera qu'a la fin --
+       sauf pour ceux qui ne tiennent pas la caisse, eux attendent. */
     var autres = noms.filter(function (n) { return n !== CAISSIER; });
     var duAuxAutres = 0;
     autres.forEach(function (n) { duAuxAutres += parQui[n]; });
     boite.appendChild(creer("p", "dit", reste < 0
-      ? "Il manque " + euros.format(-reste)
-        + " pour couvrir ce qui a été avancé et engagé : il faut attendre "
-        + "les règlements."
+      ? "Les entrées ne couvrent pas encore les frais : il manque "
+        + euros.format(-reste) + ", il faut attendre les règlements."
       : (duAuxAutres > 0
         ? euros.format(duAuxAutres) + " à rendre à "
           + autres.join(" et ") + ", et il resterait "
           + euros.format(reste) + "."
-        : "Les avances se retiennent sur la caisse, que "
-          + CAISSIER + " détient déjà : il reste "
-          + euros.format(reste) + " de disponible.")));
+        : "Les entrées couvrent les frais au fur et à mesure : "
+          + euros.format(reste) + " de disponible. Le décompte de qui a payé "
+          + "quoi se fera à la fin.")));
   }
 
   /** Les deux barres : ce qui rentre et ce qui sort, a la meme echelle.
